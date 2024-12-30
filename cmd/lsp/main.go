@@ -239,10 +239,12 @@ func main() {
 
 	fmt.Println("Found SymbolInformation format:")
 	for _, info := range symbolInfo {
-		fmt.Printf("- %s (%s) at line %d\n",
+		fmt.Printf("- %s (%s) at line %d - %d\n",
 			info.Name,
 			info.Kind,
-			info.Location.Range.Start.Line+1)
+			info.Location.Range.Start.Line+1,
+			info.Location.Range.End.Line+1,
+		)
 	}
 
 	if err := cmd.Wait(); err != nil {
