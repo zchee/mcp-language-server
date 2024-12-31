@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
+	"github.com/isaacphi/mcp-language-server/internal/lsp/methods"
 	"github.com/kralicky/tools-lite/gopls/pkg/protocol"
 )
 
@@ -23,6 +24,9 @@ func main() {
 		log.Fatalf("Failed to create LSP client: %v", err)
 	}
 	defer client.Close()
+
+	// Create the wrapper for type-safe method calls
+	wrapper := methods.NewWrapper(client)
 
 	// Register notification handler for window/showMessage
 	client.RegisterNotificationHandler("window/showMessage", func(method string, params json.RawMessage) {
@@ -48,9 +52,6 @@ func main() {
 	}
 	fmt.Printf("Server capabilities:\n%s\n", string(prettyJSON))
 
-	// Create document manager
-	docManager := lsp.NewDocumentManager(client)
-
 	// Example: Open and analyze this file
 	filepath := "/Users/phil/dev/mcp-language-server/cmd/lsp/main.go"
 	content, err := os.ReadFile(filepath)
@@ -58,22 +59,37 @@ func main() {
 		log.Fatalf("Failed to read file: %v", err)
 	}
 
-	// Open document
+	// Open document using the wrapper
 	uri := protocol.DocumentURI("file://" + filepath)
-	err = docManager.OpenDocument(uri, "go", string(content))
+	err = wrapper.TextDocumentDidOpen(protocol.DidOpenTextDocumentParams{
+		TextDocument: protocol.TextDocumentItem{
+			URI:        uri,
+			LanguageID: "go",
+			Version:    1,
+			Text:       string(content),
+		},
+	})
 	if err != nil {
 		log.Fatalf("Failed to open document: %v", err)
 	}
 
-	// Get document symbols
-	symbols, err := docManager.GetDocumentSymbols(uri)
+	// Get document symbols using the wrapper
+	symbols, err := wrapper.TextDocumentDocumentSymbol(protocol.DocumentSymbolParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+	})
 	if err != nil {
 		log.Fatalf("Failed to get document symbols: %v", err)
 	}
 
+	// Convert interface{} to []protocol.DocumentSymbol
+	documentSymbols, ok := symbols.([]protocol.DocumentSymbol)
+	if !ok {
+		log.Fatalf("Failed to convert symbols to DocumentSymbol slice")
+	}
+
 	// Print symbols
 	fmt.Println("\nDocument symbols:")
-	printSymbols(symbols, 0)
+	printSymbols(documentSymbols, 0)
 }
 
 // Helper function to print symbols with proper indentation
