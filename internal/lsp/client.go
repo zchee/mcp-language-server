@@ -18,6 +18,7 @@ type Client struct {
 	cmd    *exec.Cmd
 	stdin  io.WriteCloser
 	stdout *bufio.Reader
+	stderr io.ReadCloser
 
 	// Request ID counter
 	nextID atomic.Int32
@@ -38,6 +39,7 @@ type NotificationHandler func(method string, params json.RawMessage)
 func NewClient(command string) (*Client, error) {
 	cmd := exec.Command(command)
 
+	// Set up pipes for stdin, stdout, and stderr
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create stdin pipe: %w", err)
@@ -48,17 +50,32 @@ func NewClient(command string) (*Client, error) {
 		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
 
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
+
 	client := &Client{
 		cmd:                  cmd,
 		stdin:                stdin,
 		stdout:               bufio.NewReader(stdout),
+		stderr:               stderr,
 		handlers:             make(map[int32]chan *Message),
 		notificationHandlers: make(map[string]NotificationHandler),
 	}
 
+	// Start the LSP server process
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start LSP server: %w", err)
 	}
+
+	// Handle stderr in a separate goroutine
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			fmt.Fprintf(os.Stderr, "LSP Server: %s\n", scanner.Text())
+		}
+	}()
 
 	// Start message handling loop
 	go client.handleMessages()
@@ -75,17 +92,33 @@ func (c *Client) RegisterNotificationHandler(method string, handler Notification
 
 // Initialize initializes the LSP connection
 func (c *Client) Initialize() (*protocol.InitializeResult, error) {
-	initParams := protocol.InitializeParams{
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	initParams := &protocol.InitializeParams{
 		XInitializeParams: protocol.XInitializeParams{
 			ProcessID: int32(os.Getpid()),
-			RootURI:   "file:///",
+			RootURI:   protocol.DocumentURI("file://" + cwd),
 			Capabilities: protocol.ClientCapabilities{
+				Workspace: protocol.WorkspaceClientCapabilities{
+					WorkspaceFolders: true,
+				},
 				TextDocument: protocol.TextDocumentClientCapabilities{
 					Completion: protocol.CompletionClientCapabilities{
 						CompletionItem: protocol.ClientCompletionItemOptions{
 							SnippetSupport: true,
 						},
 					},
+				},
+			},
+		},
+		WorkspaceFoldersInitializeParams: protocol.WorkspaceFoldersInitializeParams{
+			[]protocol.WorkspaceFolder{
+				{
+					URI:  "file://" + cwd,
+					Name: "root",
 				},
 			},
 		},

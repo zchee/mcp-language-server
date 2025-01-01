@@ -25,14 +25,8 @@ func (r *Registry) HasMethod(name string) bool {
 
 // Known LSP methods
 const (
-	TextDocumentDidOpenMethod        = "textDocument/didOpen"
-	TextDocumentDidChangeMethod      = "textDocument/didChange"
-	TextDocumentDidCloseMethod       = "textDocument/didClose"
-	TextDocumentDidSaveMethod        = "textDocument/didSave"
-	TextDocumentDocumentSymbolMethod = "textDocument/documentSymbol"
-	WorkspaceSymbolMethod            = "workspace/symbol"
-	TextDocumentDefinitionMethod     = "textDocument/definition"
-	TextDocumentFormattingMethod     = "textDocument/formatting"
-	TextDocumentHoverMethod          = "textDocument/hover"
-	TextDocumentReferencesMethod     = "textDocument/references"
+	InitializeMethod  = "initialize"
+	InitializedMethod = "initialized"
+	ShutdownMethod    = "shutdown"
+	ExitMethod        = "exit"
 )

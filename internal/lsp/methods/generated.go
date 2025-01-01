@@ -2,7 +2,6 @@
 package methods
 
 import (
-	"fmt"
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
 	"github.com/kralicky/tools-lite/gopls/pkg/protocol"
 )
@@ -17,104 +16,32 @@ func NewWrapper(client *lsp.Client) *Wrapper {
 	return &Wrapper{client: client}
 }
 
-// TextDocumentDidOpen sends a TextDocument notification for textDocument/didOpen
-func (w *Wrapper) TextDocumentDidOpen(params protocol.DidOpenTextDocumentParams) error {
-	return w.client.Notify("textDocument/didOpen", params)
-}
+// Initialize sends a General request for initialize
+func (w *Wrapper) Initialize(params protocol.InitializeParams) (protocol.InitializeResult, error) {
+	var result protocol.InitializeResult
 
-// TextDocumentDidChange sends a TextDocument notification for textDocument/didChange
-func (w *Wrapper) TextDocumentDidChange(params protocol.DidChangeTextDocumentParams) error {
-	return w.client.Notify("textDocument/didChange", params)
-}
+	err := w.client.Call("initialize", params, &result)
 
-// TextDocumentDidClose sends a TextDocument notification for textDocument/didClose
-func (w *Wrapper) TextDocumentDidClose(params protocol.DidCloseTextDocumentParams) error {
-	return w.client.Notify("textDocument/didClose", params)
-}
-
-// TextDocumentDidSave sends a TextDocument notification for textDocument/didSave
-func (w *Wrapper) TextDocumentDidSave(params protocol.DidSaveTextDocumentParams) error {
-	return w.client.Notify("textDocument/didSave", params)
-}
-
-// TextDocumentDocumentSymbol sends a TextDocument request for textDocument/documentSymbol
-// Returns: []protocol.DocumentSymbol or []protocol.SymbolInformation
-func (w *Wrapper) TextDocumentDocumentSymbol(params protocol.DocumentSymbolParams) (interface{}, error) {
-
-	// Try type DocumentSymbol
-	{
-		var result0 []protocol.DocumentSymbol
-		err := w.client.Call("textDocument/documentSymbol", params, &result0)
-		if err == nil {
-			return result0, nil
-		}
-	}
-	// Try type SymbolInformation
-	{
-		var result1 []protocol.SymbolInformation
-		err := w.client.Call("textDocument/documentSymbol", params, &result1)
-		if err == nil {
-			return convertSymbolInformationSliceToDocumentSymbolSlice(result1), nil
-		}
-	}
-	return nil, fmt.Errorf("all response type attempts failed")
-}
-
-// WorkspaceSymbol sends a Workspace request for workspace/symbol
-func (w *Wrapper) WorkspaceSymbol(params protocol.WorkspaceSymbolParams) ([]protocol.SymbolInformation, error) {
-	var result []protocol.SymbolInformation
-	err := w.client.Call("workspace/symbol", params, &result)
 	return result, err
 }
 
-// TextDocumentDefinition sends a TextDocument request for textDocument/definition
-// Returns: protocol.Location or []protocol.Location or []protocol.DefinitionLink
-func (w *Wrapper) TextDocumentDefinition(params protocol.DefinitionParams) (interface{}, error) {
+// Initialized sends a General notification for initialized
+func (w *Wrapper) Initialized(params protocol.InitializedParams) error {
 
-	// Try type Location
-	{
-		var result0 protocol.Location
-		err := w.client.Call("textDocument/definition", params, &result0)
-		if err == nil {
-			return result0, nil
-		}
-	}
-	// Try type Location
-	{
-		var result1 []protocol.Location
-		err := w.client.Call("textDocument/definition", params, &result1)
-		if err == nil {
-			return result1, nil
-		}
-	}
-	// Try type DefinitionLink
-	{
-		var result2 []protocol.DefinitionLink
-		err := w.client.Call("textDocument/definition", params, &result2)
-		if err == nil {
-			return result2, nil
-		}
-	}
-	return nil, fmt.Errorf("all response type attempts failed")
+	return w.client.Notify("initialized", params)
+
 }
 
-// TextDocumentFormatting sends a TextDocument request for textDocument/formatting
-func (w *Wrapper) TextDocumentFormatting(params protocol.DocumentFormattingParams) ([]protocol.TextEdit, error) {
-	var result []protocol.TextEdit
-	err := w.client.Call("textDocument/formatting", params, &result)
-	return result, err
+// Shutdown sends a General request for shutdown
+func (w *Wrapper) Shutdown() error {
+
+	return w.client.Call("shutdown", struct{}{}, nil)
+
 }
 
-// TextDocumentHover sends a TextDocument request for textDocument/hover
-func (w *Wrapper) TextDocumentHover(params protocol.HoverParams) (protocol.Hover, error) {
-	var result protocol.Hover
-	err := w.client.Call("textDocument/hover", params, &result)
-	return result, err
-}
+// Exit sends a General notification for exit
+func (w *Wrapper) Exit() error {
 
-// TextDocumentReferences sends a TextDocument request for textDocument/references
-func (w *Wrapper) TextDocumentReferences(params protocol.ReferenceParams) ([]protocol.Location, error) {
-	var result []protocol.Location
-	err := w.client.Call("textDocument/references", params, &result)
-	return result, err
+	return w.client.Notify("exit", struct{}{})
+
 }
