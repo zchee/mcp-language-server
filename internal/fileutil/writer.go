@@ -45,13 +45,9 @@ func ReplaceLocationContent(loc protocol.Location, newContent string) error {
 	} else {
 		// Handle multi-line case
 		startLine := lines[startLine]
-		endLine := lines[endLine]
 
 		if startChar > len(startLine) {
 			return fmt.Errorf("start character exceeds line length")
-		}
-		if endChar > len(endLine) {
-			endChar = len(endLine) // Clamp to line length
 		}
 
 		// Replace the content

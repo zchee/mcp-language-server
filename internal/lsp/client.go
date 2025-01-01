@@ -115,7 +115,7 @@ func (c *Client) Initialize() (*protocol.InitializeResult, error) {
 			},
 		},
 		WorkspaceFoldersInitializeParams: protocol.WorkspaceFoldersInitializeParams{
-			[]protocol.WorkspaceFolder{
+			WorkspaceFolders: []protocol.WorkspaceFolder{
 				{
 					URI:  "file://" + cwd,
 					Name: "root",

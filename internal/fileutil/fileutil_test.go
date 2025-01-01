@@ -12,7 +12,7 @@ import (
 
 func setupTestFile(t *testing.T) (string, func()) {
 	t.Helper()
-	
+
 	content := []byte(`package test
 
 func example() {
@@ -23,7 +23,7 @@ func example() {
 
 	dir := t.TempDir()
 	filename := filepath.Join(dir, "test.go")
-	
+
 	err := os.WriteFile(filename, content, 0644)
 	if err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
@@ -76,7 +76,7 @@ func TestReadLocationContent(t *testing.T) {
 					End:   protocol.Position{Line: 4, Character: 28}, // Changed to include closing parenthesis
 				},
 			},
-			want: fmt.Sprintf("fmt.Println(\"Hello, World!\")\n\tfmt.Println(\"Another line\")"),
+			want:    "fmt.Println(\"Hello, World!\")\n\tfmt.Println(\"Another line\")",
 			wantErr: false,
 		},
 		{

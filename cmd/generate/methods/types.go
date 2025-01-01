@@ -2,6 +2,9 @@ package methods
 
 import (
 	"strings"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // ReturnType represents a possible return type for an LSP method
@@ -35,7 +38,7 @@ func (m MethodDef) GoName() string {
 	for _, part := range parts {
 		subParts := strings.Split(part, "_")
 		for _, sp := range subParts {
-			result.WriteString(strings.Title(sp))
+			result.WriteString(cases.Title(language.English, cases.NoLower).String(sp))
 		}
 	}
 	return result.String()
