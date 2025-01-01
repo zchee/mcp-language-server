@@ -21,12 +21,20 @@ func main() {
 	defer os.RemoveAll(tmpDir)
 
 	// Create a simple Go file
-	err = os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(`package main
+	testFile := filepath.Join(tmpDir, "main.go")
+	fileContent := []byte(`package main
+
+import "fmt"
 
 func main() {
-	println("Hello, World!")
+	fmt.Println("Hello, World!")
 }
-`), 0644)
+
+func add(a, b int) int {
+	return a + b
+}
+`)
+	err = os.WriteFile(testFile, fileContent, 0644)
 	if err != nil {
 		log.Fatalf("Failed to create test file: %v", err)
 	}
@@ -58,62 +66,86 @@ func main() {
 		}
 	})
 
-	// Test 1: Initialize
-	fmt.Println("Testing initialize...")
-	initParams := &protocol.InitializeParams{
-		XInitializeParams: protocol.XInitializeParams{
-			ProcessID: int32(os.Getpid()),
-			RootURI:   protocol.DocumentURI("file://" + tmpDir),
-			Capabilities: protocol.ClientCapabilities{
-				Workspace: protocol.WorkspaceClientCapabilities{
-					WorkspaceFolders: true,
-				},
-				TextDocument: protocol.TextDocumentClientCapabilities{
-					Completion: protocol.CompletionClientCapabilities{
-						CompletionItem: protocol.ClientCompletionItemOptions{
-							SnippetSupport: true,
-						},
-					},
-				},
-			},
-		},
-		WorkspaceFoldersInitializeParams: protocol.WorkspaceFoldersInitializeParams{
-			WorkspaceFolders: []protocol.WorkspaceFolder{
-				{
-					URI:  "file://" + tmpDir,
-					Name: "root",
-				},
-			},
-		},
-	}
-
-	var initResult protocol.InitializeResult
-	if err := client.Call("initialize", initParams, &initResult); err != nil {
+	// Initialize
+	initResult, err := client.Initialize()
+	if err != nil {
 		log.Fatalf("Initialize failed: %v", err)
 	}
-	fmt.Printf("Server capabilities received: %+v\n\n", initResult.Capabilities)
+	fmt.Printf("Server initialized with capabilities: %+v\n\n", initResult.Capabilities)
 
-	// Test 2: Initialized notification
-	fmt.Println("Testing initialized notification...")
+	// Send initialized notification
 	err = wrapper.Initialized(protocol.InitializedParams{})
 	if err != nil {
 		log.Fatalf("Initialized notification failed: %v", err)
 	}
-	fmt.Println("Initialized notification sent successfully\n")
 
-	// Test 3: Shutdown
-	fmt.Println("Testing shutdown...")
+	// Test textDocument/didOpen
+	fmt.Println("Testing textDocument/didOpen...")
+	uri := protocol.DocumentURI("file://" + testFile)
+	err = wrapper.TextDocumentDidOpen(protocol.DidOpenTextDocumentParams{
+		TextDocument: protocol.TextDocumentItem{
+			URI:        uri,
+			LanguageID: "go",
+			Version:    1,
+			Text:       string(fileContent),
+		},
+	})
+	if err != nil {
+		log.Fatalf("TextDocumentDidOpen failed: %v", err)
+	}
+	fmt.Println("TextDocumentDidOpen successful")
+
+	// Test textDocument/documentSymbol
+	fmt.Println("\nTesting textDocument/documentSymbol...")
+	symbols, err := wrapper.TextDocumentDocumentSymbol(protocol.DocumentSymbolParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+	})
+	if err != nil {
+		log.Fatalf("TextDocumentDocumentSymbol failed: %v", err)
+	}
+	documentSymbols, ok := symbols.([]protocol.DocumentSymbol)
+	if !ok {
+		fmt.Println("Got SymbolInformation instead of DocumentSymbol")
+	} else {
+		fmt.Println("Document symbols:")
+		for _, sym := range documentSymbols {
+			fmt.Printf("- %s (%s) at line %d\n", sym.Name, sym.Kind, sym.Range.Start.Line+1)
+		}
+	}
+
+	// Test textDocument/hover
+	fmt.Println("\nTesting textDocument/hover...")
+	hover, err := wrapper.TextDocumentHover(protocol.HoverParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+			Position:    protocol.Position{Line: 8, Character: 5}, // Position on 'add' function
+		},
+	})
+	if err != nil {
+		log.Fatalf("TextDocumentHover failed: %v", err)
+	}
+	fmt.Printf("Hover result: %+v\n", hover)
+
+	// Test textDocument/didClose
+	fmt.Println("\nTesting textDocument/didClose...")
+	err = wrapper.TextDocumentDidClose(protocol.DidCloseTextDocumentParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+	})
+	if err != nil {
+		log.Fatalf("TextDocumentDidClose failed: %v", err)
+	}
+	fmt.Println("TextDocumentDidClose successful")
+
+	// Cleanup
+	fmt.Println("\nShutting down...")
 	err = wrapper.Shutdown()
 	if err != nil {
 		log.Fatalf("Shutdown failed: %v", err)
 	}
-	fmt.Println("Shutdown successful\n")
 
-	// Test 4: Exit
-	fmt.Println("Testing exit...")
 	err = wrapper.Exit()
 	if err != nil {
 		log.Fatalf("Exit failed: %v", err)
 	}
-	fmt.Println("Exit notification sent successfully")
+	fmt.Println("Server shut down successfully")
 }

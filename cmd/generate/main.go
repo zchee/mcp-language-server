@@ -28,9 +28,10 @@ func main() {
 
 	// Collect all method definitions
 	methodDefs := []methods.MethodDef{}
-	
+
 	// Add methods from each category
 	methodDefs = append(methodDefs, methods.GeneralMethods()...)
+	methodDefs = append(methodDefs, methods.TextDocumentMethods()...)
 
 	// Generate files
 	if err := generateMethodsFile(outDir, methodDefs); err != nil {
