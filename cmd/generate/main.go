@@ -12,13 +12,6 @@ import (
 	"github.com/isaacphi/mcp-language-server/cmd/generate/methods"
 )
 
-// Template functions
-var templateFuncs = template.FuncMap{
-	"sub": func(a, b int) int {
-		return a - b
-	},
-}
-
 func main() {
 	// Create output directory
 	outDir := "internal/lsp/methods"
@@ -78,7 +71,7 @@ func NewWrapper(client *lsp.Client) *Wrapper {
 			tmpl = notificationTemplate
 		}
 
-		t := template.Must(template.New("method").Funcs(templateFuncs).Parse(tmpl))
+		t := template.Must(template.New("method").Parse(tmpl))
 		if err := t.Execute(&buf, method); err != nil {
 			return fmt.Errorf("failed to execute template: %v", err)
 		}

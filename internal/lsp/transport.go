@@ -72,7 +72,7 @@ func (c *Client) handleMessages() {
 	for {
 		msg, err := ReadMessage(c.stdout)
 		if err != nil {
-			// Handle error (possibly reconnect or notify error handlers)
+			// TODO: (possibly reconnect or notify error handlers)
 			return
 		}
 
@@ -81,7 +81,7 @@ func (c *Client) handleMessages() {
 			c.notificationMu.RLock()
 			handler, ok := c.notificationHandlers[msg.Method]
 			c.notificationMu.RUnlock()
-			
+
 			if ok {
 				go handler(msg.Method, msg.Params)
 			}
@@ -104,7 +104,7 @@ func (c *Client) handleMessages() {
 // Call makes a request and waits for the response
 func (c *Client) Call(method string, params interface{}, result interface{}) error {
 	id := c.nextID.Add(1)
-	
+
 	msg, err := NewRequest(id, method, params)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)

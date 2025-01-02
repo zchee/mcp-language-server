@@ -36,18 +36,7 @@ func (m MethodDef) GoName() string {
 	parts := strings.Split(m.Name, "/")
 	var result strings.Builder
 	for _, part := range parts {
-		subParts := strings.Split(part, "_")
-		for _, sp := range subParts {
-			result.WriteString(cases.Title(language.English, cases.NoLower).String(sp))
-		}
+		result.WriteString(cases.Title(language.English, cases.NoLower).String(part))
 	}
 	return result.String()
-}
-
-// Returns the primary (preferred) return type
-func (m MethodDef) PrimaryResponseType() *ReturnType {
-	if len(m.ResponseTypes) == 0 {
-		return nil
-	}
-	return &m.ResponseTypes[0]
 }
