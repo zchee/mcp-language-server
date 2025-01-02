@@ -48,7 +48,9 @@ func generateMethodsFile(outDir string, methods []methods.MethodDef) error {
 package methods
 
 import (
+	"encoding/json"
 	"fmt"
+
 	"github.com/kralicky/tools-lite/gopls/pkg/protocol"
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
 )

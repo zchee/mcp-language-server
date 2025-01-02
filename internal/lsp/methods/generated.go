@@ -2,7 +2,9 @@
 package methods
 
 import (
+	"encoding/json"
 	"fmt"
+
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
 	"github.com/kralicky/tools-lite/gopls/pkg/protocol"
 )
@@ -94,28 +96,30 @@ func (w *Wrapper) TextDocumentDidSave(params protocol.DidSaveTextDocumentParams)
 // TextDocumentCompletion sends a TextDocument request for textDocument/completion
 // Returns: protocol.CompletionList or []protocol.CompletionItem
 func (w *Wrapper) TextDocumentCompletion(params protocol.CompletionParams) (interface{}, error) {
+	// Make single call and get raw response
+	var rawResult json.RawMessage
+
+	err := w.client.Call("textDocument/completion", params, &rawResult)
+
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
 
 	// Try type CompletionList
 	{
 		var result0 protocol.CompletionList
-
-		err := w.client.Call("textDocument/completion", params, &result0)
-
-		if err == nil {
+		if err := json.Unmarshal(rawResult, &result0); err == nil {
 			return result0, nil
 		}
 	}
 	// Try type CompletionItem
 	{
 		var result1 []protocol.CompletionItem
-
-		err := w.client.Call("textDocument/completion", params, &result1)
-
-		if err == nil {
+		if err := json.Unmarshal(rawResult, &result1); err == nil {
 			return result1, nil
 		}
 	}
-	return nil, fmt.Errorf("all response type attempts failed")
+	return nil, fmt.Errorf("response did not match any expected type")
 }
 
 // TextDocumentHover sends a TextDocument request for textDocument/hover
@@ -139,75 +143,73 @@ func (w *Wrapper) TextDocumentSignatureHelp(params protocol.SignatureHelpParams)
 // TextDocumentDefinition sends a TextDocument request for textDocument/definition
 // Returns: protocol.Location or []protocol.Location or []protocol.DefinitionLink
 func (w *Wrapper) TextDocumentDefinition(params protocol.DefinitionParams) (interface{}, error) {
+	// Make single call and get raw response
+	var rawResult json.RawMessage
+
+	err := w.client.Call("textDocument/definition", params, &rawResult)
+
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
 
 	// Try type Location
 	{
 		var result0 protocol.Location
-
-		err := w.client.Call("textDocument/definition", params, &result0)
-
-		if err == nil {
+		if err := json.Unmarshal(rawResult, &result0); err == nil {
 			return result0, nil
 		}
 	}
 	// Try type Location
 	{
 		var result1 []protocol.Location
-
-		err := w.client.Call("textDocument/definition", params, &result1)
-
-		if err == nil {
+		if err := json.Unmarshal(rawResult, &result1); err == nil {
 			return result1, nil
 		}
 	}
 	// Try type DefinitionLink
 	{
 		var result2 []protocol.DefinitionLink
-
-		err := w.client.Call("textDocument/definition", params, &result2)
-
-		if err == nil {
+		if err := json.Unmarshal(rawResult, &result2); err == nil {
 			return result2, nil
 		}
 	}
-	return nil, fmt.Errorf("all response type attempts failed")
+	return nil, fmt.Errorf("response did not match any expected type")
 }
 
 // TextDocumentDeclaration sends a TextDocument request for textDocument/declaration
 // Returns: protocol.Location or []protocol.Location or []protocol.DeclarationLink
 func (w *Wrapper) TextDocumentDeclaration(params protocol.DeclarationParams) (interface{}, error) {
+	// Make single call and get raw response
+	var rawResult json.RawMessage
+
+	err := w.client.Call("textDocument/declaration", params, &rawResult)
+
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
 
 	// Try type Location
 	{
 		var result0 protocol.Location
-
-		err := w.client.Call("textDocument/declaration", params, &result0)
-
-		if err == nil {
+		if err := json.Unmarshal(rawResult, &result0); err == nil {
 			return result0, nil
 		}
 	}
 	// Try type Location
 	{
 		var result1 []protocol.Location
-
-		err := w.client.Call("textDocument/declaration", params, &result1)
-
-		if err == nil {
+		if err := json.Unmarshal(rawResult, &result1); err == nil {
 			return result1, nil
 		}
 	}
 	// Try type DeclarationLink
 	{
 		var result2 []protocol.DeclarationLink
-
-		err := w.client.Call("textDocument/declaration", params, &result2)
-
-		if err == nil {
+		if err := json.Unmarshal(rawResult, &result2); err == nil {
 			return result2, nil
 		}
 	}
-	return nil, fmt.Errorf("all response type attempts failed")
+	return nil, fmt.Errorf("response did not match any expected type")
 }
 
 // TextDocumentReferences sends a TextDocument request for textDocument/references
@@ -231,28 +233,30 @@ func (w *Wrapper) TextDocumentDocumentHighlight(params protocol.DocumentHighligh
 // TextDocumentDocumentSymbol sends a TextDocument request for textDocument/documentSymbol
 // Returns: []protocol.DocumentSymbol or []protocol.SymbolInformation
 func (w *Wrapper) TextDocumentDocumentSymbol(params protocol.DocumentSymbolParams) (interface{}, error) {
+	// Make single call and get raw response
+	var rawResult json.RawMessage
+
+	err := w.client.Call("textDocument/documentSymbol", params, &rawResult)
+
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
 
 	// Try type DocumentSymbol
 	{
 		var result0 []protocol.DocumentSymbol
-
-		err := w.client.Call("textDocument/documentSymbol", params, &result0)
-
-		if err == nil {
+		if err := json.Unmarshal(rawResult, &result0); err == nil {
 			return result0, nil
 		}
 	}
 	// Try type SymbolInformation
 	{
 		var result1 []protocol.SymbolInformation
-
-		err := w.client.Call("textDocument/documentSymbol", params, &result1)
-
-		if err == nil {
+		if err := json.Unmarshal(rawResult, &result1); err == nil {
 			return convertSymbolInformationSliceToDocumentSymbolSlice(result1), nil
 		}
 	}
-	return nil, fmt.Errorf("all response type attempts failed")
+	return nil, fmt.Errorf("response did not match any expected type")
 }
 
 // TextDocumentFormatting sends a TextDocument request for textDocument/formatting

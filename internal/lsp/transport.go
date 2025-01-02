@@ -135,6 +135,12 @@ func (c *Client) Call(method string, params interface{}, result interface{}) err
 	}
 
 	if result != nil {
+		// If result is a json.RawMessage, just copy the raw bytes
+		if rawMsg, ok := result.(*json.RawMessage); ok {
+			*rawMsg = resp.Result
+			return nil
+		}
+		// Otherwise unmarshal into the provided type
 		if err := json.Unmarshal(resp.Result, result); err != nil {
 			return fmt.Errorf("failed to unmarshal result: %w", err)
 		}

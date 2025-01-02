@@ -10,7 +10,6 @@ func (w *Wrapper) {{.GoName}}({{if ne .RequestType "struct{}"}}params protocol.{
     {{end}}
 }
 `
-
 var requestTemplate = `
 // {{.GoName}} sends a {{.Category}} request for {{.Name}}
 {{- $method := . -}}
@@ -35,16 +34,22 @@ func (w *Wrapper) {{.GoName}}({{if ne .RequestType "struct{}"}}params protocol.{
 {{- else }}
 // Returns: {{range $i, $rt := .ResponseTypes}}{{if $i}} or {{end}}{{$rt.GoType}}{{end}}
 func (w *Wrapper) {{.GoName}}({{if ne .RequestType "struct{}"}}params protocol.{{.RequestType}}{{end}}) (interface{}, error) {
+    // Make single call and get raw response
+    var rawResult json.RawMessage
+    {{if eq .RequestType "struct{}"}}
+    err := w.client.Call("{{.Name}}", struct{}{}, &rawResult)
+    {{else}}
+    err := w.client.Call("{{.Name}}", params, &rawResult)
+    {{end}}
+    if err != nil {
+        return nil, fmt.Errorf("request failed: %w", err)
+    }
+
     {{ range $i, $rt := .ResponseTypes }}
     // Try type {{$rt.Type}}
     {
         var result{{$i}} {{$rt.GoType}}
-        {{if eq $method.RequestType "struct{}"}}
-        err := w.client.Call("{{$method.Name}}", struct{}{}, &result{{$i}})
-        {{else}}
-        err := w.client.Call("{{$method.Name}}", params, &result{{$i}})
-        {{end}}
-        if err == nil {
+        if err := json.Unmarshal(rawResult, &result{{$i}}); err == nil {
             {{- if $rt.NeedsConvert }}
             {{- if $rt.IsSlice }}
             return convert{{$rt.Type}}SliceTo{{(index $method.ResponseTypes 0).Type}}Slice(result{{$i}}), nil
@@ -57,7 +62,7 @@ func (w *Wrapper) {{.GoName}}({{if ne .RequestType "struct{}"}}params protocol.{
         }
     }
     {{- end }}
-    return nil, fmt.Errorf("all response type attempts failed")
+    return nil, fmt.Errorf("response did not match any expected type")
 }
 {{- end }}
 `
