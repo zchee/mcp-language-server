@@ -6,6 +6,247 @@ import (
 	"github.com/kralicky/tools-lite/gopls/pkg/protocol"
 )
 
+func TestTextDocumentDidOpen(t *testing.T) {
+	ts := newTestServer(t)
+	ts.initialize()
+
+	uri := ts.createFile("main.go", sampleGoFile)
+
+	err := ts.wrapper.TextDocumentDidOpen(protocol.DidOpenTextDocumentParams{
+		TextDocument: protocol.TextDocumentItem{
+			URI:        uri,
+			LanguageID: "go",
+			Version:    1,
+			Text:       sampleGoFile,
+		},
+	})
+
+	if err != nil {
+		t.Errorf("TextDocumentDidOpen failed: %v", err)
+	}
+}
+
+func TestTextDocumentDidChange(t *testing.T) {
+	ts := newTestServer(t)
+	ts.initialize()
+
+	uri := ts.createFile("main.go", sampleGoFile)
+
+	// First open the document
+	err := ts.wrapper.TextDocumentDidOpen(protocol.DidOpenTextDocumentParams{
+		TextDocument: protocol.TextDocumentItem{
+			URI:        uri,
+			LanguageID: "go",
+			Version:    1,
+			Text:       sampleGoFile,
+		},
+	})
+	if err != nil {
+		t.Fatalf("TextDocumentDidOpen failed: %v", err)
+	}
+
+	// Test document changes
+	changes := []protocol.TextDocumentContentChangeEvent{
+		{
+			Range: &protocol.Range{
+				Start: protocol.Position{Line: 5, Character: 1},
+				End:   protocol.Position{Line: 5, Character: 6},
+			},
+			Text: "fmt.Printf",
+		},
+	}
+
+	err = ts.wrapper.TextDocumentDidChange(protocol.DidChangeTextDocumentParams{
+		TextDocument: protocol.VersionedTextDocumentIdentifier{
+			TextDocumentIdentifier: protocol.TextDocumentIdentifier{URI: uri},
+			Version:                2,
+		},
+		ContentChanges: changes,
+	})
+
+	if err != nil {
+		t.Errorf("TextDocumentDidChange failed: %v", err)
+	}
+}
+
+func TestTextDocumentCompletion(t *testing.T) {
+	ts := newTestServer(t)
+	ts.initialize()
+
+	uri := ts.createFile("main.go", sampleGoFile)
+
+	// Open the document first
+	err := ts.wrapper.TextDocumentDidOpen(protocol.DidOpenTextDocumentParams{
+		TextDocument: protocol.TextDocumentItem{
+			URI:        uri,
+			LanguageID: "go",
+			Version:    1,
+			Text:       sampleGoFile,
+		},
+	})
+	if err != nil {
+		t.Fatalf("TextDocumentDidOpen failed: %v", err)
+	}
+
+	// Test completion at the 'fmt.' position
+	result, err := ts.wrapper.TextDocumentCompletion(protocol.CompletionParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+			Position:     protocol.Position{Line: 5, Character: 5},
+		},
+		Context: protocol.CompletionContext{
+			TriggerKind: protocol.Invoked,
+		},
+	})
+
+	if err != nil {
+		t.Errorf("TextDocumentCompletion failed: %v", err)
+	}
+
+	// Check that we got some completions back
+	switch v := result.(type) {
+	case protocol.CompletionList:
+		if len(v.Items) == 0 {
+			t.Error("Expected non-empty completion list")
+		}
+	case []protocol.CompletionItem:
+		if len(v) == 0 {
+			t.Error("Expected non-empty completion items")
+		}
+	default:
+		t.Errorf("Unexpected completion result type: %T", result)
+	}
+}
+
+func TestTextDocumentHover(t *testing.T) {
+	ts := newTestServer(t)
+	ts.initialize()
+
+	uri := ts.createFile("main.go", sampleGoFile)
+
+	// Open the document first
+	err := ts.wrapper.TextDocumentDidOpen(protocol.DidOpenTextDocumentParams{
+		TextDocument: protocol.TextDocumentItem{
+			URI:        uri,
+			LanguageID: "go",
+			Version:    1,
+			Text:       sampleGoFile,
+		},
+	})
+	if err != nil {
+		t.Fatalf("TextDocumentDidOpen failed: %v", err)
+	}
+
+	// Test hover over the 'add' function
+	hover, err := ts.wrapper.TextDocumentHover(protocol.HoverParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+			Position:     protocol.Position{Line: 8, Character: 5}, // Position on 'add' function
+		},
+	})
+	if err != nil {
+		t.Errorf("TextDocumentHover failed: %v", err)
+	}
+
+	if hover.Contents.Value == "" {
+		t.Error("Expected non-empty hover content")
+	}
+}
+
+func TestTextDocumentFormatting(t *testing.T) {
+	ts := newTestServer(t)
+	ts.initialize()
+
+	// Create file with intentionally bad formatting
+	badFormatting := `package main
+import "fmt"
+func main(){
+fmt.Println("Hello, World!")
+}
+`
+	uri := ts.createFile("main.go", badFormatting)
+
+	// Open the document first
+	err := ts.wrapper.TextDocumentDidOpen(protocol.DidOpenTextDocumentParams{
+		TextDocument: protocol.TextDocumentItem{
+			URI:        uri,
+			LanguageID: "go",
+			Version:    1,
+			Text:       badFormatting,
+		},
+	})
+	if err != nil {
+		t.Fatalf("TextDocumentDidOpen failed: %v", err)
+	}
+
+	// Test formatting
+	edits, err := ts.wrapper.TextDocumentFormatting(protocol.DocumentFormattingParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+		Options: protocol.FormattingOptions{
+			TabSize:      4,
+			InsertSpaces: true,
+		},
+	})
+
+	if err != nil {
+		t.Errorf("TextDocumentFormatting failed: %v", err)
+	}
+
+	if len(edits) == 0 {
+		t.Error("Expected non-empty formatting edits for badly formatted file")
+	}
+}
+
+func TestTextDocumentDefinition(t *testing.T) {
+	ts := newTestServer(t)
+	ts.initialize()
+
+	uri := ts.createFile("main.go", sampleGoFile)
+
+	// Open the document first
+	err := ts.wrapper.TextDocumentDidOpen(protocol.DidOpenTextDocumentParams{
+		TextDocument: protocol.TextDocumentItem{
+			URI:        uri,
+			LanguageID: "go",
+			Version:    1,
+			Text:       sampleGoFile,
+		},
+	})
+	if err != nil {
+		t.Fatalf("TextDocumentDidOpen failed: %v", err)
+	}
+
+	// Test getting definition of 'add' function when used
+	definition, err := ts.wrapper.TextDocumentDefinition(protocol.DefinitionParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+			Position:     protocol.Position{Line: 8, Character: 5}, // Position on 'add' function
+		},
+	})
+
+	if err != nil {
+		t.Errorf("TextDocumentDefinition failed: %v", err)
+	}
+
+	// Check we got some location back
+	switch v := definition.(type) {
+	case protocol.Location:
+		if v.URI == "" {
+			t.Error("Expected non-empty location URI")
+		}
+	case []protocol.Location:
+		if len(v) == 0 {
+			t.Error("Expected non-empty location array")
+		}
+	case []protocol.DefinitionLink:
+		if len(v) == 0 {
+			t.Error("Expected non-empty definition link array")
+		}
+	default:
+		t.Errorf("Unexpected definition result type: %T", definition)
+	}
+}
+
 func TestTextDocumentDocumentSymbol(t *testing.T) {
 	ts := newTestServer(t)
 	ts.initialize()
@@ -92,3 +333,30 @@ func TestTextDocumentDocumentSymbol(t *testing.T) {
 	}
 }
 
+func TestTextDocumentDidClose(t *testing.T) {
+	ts := newTestServer(t)
+	ts.initialize()
+
+	uri := ts.createFile("main.go", sampleGoFile)
+
+	// Open the document first
+	err := ts.wrapper.TextDocumentDidOpen(protocol.DidOpenTextDocumentParams{
+		TextDocument: protocol.TextDocumentItem{
+			URI:        uri,
+			LanguageID: "go",
+			Version:    1,
+			Text:       sampleGoFile,
+		},
+	})
+	if err != nil {
+		t.Fatalf("TextDocumentDidOpen failed: %v", err)
+	}
+
+	// Test closing the document
+	err = ts.wrapper.TextDocumentDidClose(protocol.DidCloseTextDocumentParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+	})
+	if err != nil {
+		t.Errorf("TextDocumentDidClose failed: %v", err)
+	}
+}
