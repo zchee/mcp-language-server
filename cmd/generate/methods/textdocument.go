@@ -109,10 +109,50 @@ func TextDocumentMethods() []MethodDef {
 			Name:        "textDocument/documentSymbol",
 			RequestType: "DocumentSymbolParams",
 			ResponseTypes: []ReturnType{
-				{Type: "DocumentSymbol", IsSlice: true},
-				{Type: "SymbolInformation", IsSlice: true, NeedsConvert: true},
+				{
+					Type:    "DocumentSymbol",
+					IsSlice: true,
+				},
+				{
+					Type:         "SymbolInformation",
+					IsSlice:      true,
+					NeedsConvert: true,
+					FieldMappings: []FieldMapping{
+						{
+							SourceField: "Name",
+							DestField:   "Name",
+							SourceType:  "string",
+							DestType:    "string",
+						},
+						{
+							SourceField: "Kind",
+							DestField:   "Kind",
+							SourceType:  "protocol.SymbolKind",
+							DestType:    "protocol.SymbolKind",
+						},
+						{
+							SourceField: "Location.Range",
+							DestField:   "Range",
+							SourceType:  "protocol.Range",
+							DestType:    "protocol.Range",
+						},
+						{
+							SourceField: "Location.Range",
+							DestField:   "SelectionRange",
+							SourceType:  "protocol.Range",
+							DestType:    "protocol.Range",
+						},
+						{
+							SourceField: "ContainerName",
+							DestField:   "Detail",
+							SourceType:  "string",
+							DestType:    "string",
+						},
+					},
+				},
 			},
-			Category: "TextDocument",
+			IsNotification: false,
+			Category:       "TextDocument",
 		},
 		{
 			Name:        "textDocument/formatting",

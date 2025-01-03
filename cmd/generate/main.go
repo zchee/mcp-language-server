@@ -159,7 +159,7 @@ func generateConvertersFile(outDir string, methods []methods.MethodDef) error {
 package methods
 
 import (
-	"github.com/kralicky/tools-lite/gopls/pkg/protocol"
+    "github.com/kralicky/tools-lite/gopls/pkg/protocol"
 )
 `)
 
@@ -169,20 +169,23 @@ import (
 			primary := method.ResponseTypes[0]
 			for _, rt := range method.ResponseTypes[1:] {
 				if rt.NeedsConvert {
-					// Generate converter function
+					// Generate single item converter
 					fmt.Fprintf(&buf, `
 // convert%sTo%s converts from %s to %s
 func convert%sTo%s(from protocol.%s) protocol.%s {
     return protocol.%s{
-        Name:           from.Name,
-        Kind:           from.Kind,
-        Range:          from.Location.Range,
-        SelectionRange: from.Location.Range,
-        Detail:         from.ContainerName,
-    }
-}
-`, rt.Type, primary.Type, rt.Type, primary.Type, rt.Type, primary.Type, rt.Type, primary.Type, primary.Type)
+`, rt.Type, primary.Type, rt.Type, primary.Type, rt.Type, primary.Type,
+						rt.Type, primary.Type, primary.Type)
 
+					// Generate each field mapping
+					for _, mapping := range rt.FieldMappings {
+						fmt.Fprintf(&buf, "        %s: from.%s,\n",
+							mapping.DestField, mapping.SourceField)
+					}
+
+					buf.WriteString("    }\n}\n")
+
+					// Generate slice converter if needed
 					if rt.IsSlice {
 						fmt.Fprintf(&buf, `
 // convert%sSliceTo%sSlice converts a slice of %s to a slice of %s
@@ -193,23 +196,23 @@ func convert%sSliceTo%sSlice(from []protocol.%s) []protocol.%s {
     }
     return result
 }
-`, rt.Type, primary.Type, rt.Type, primary.Type, rt.Type, primary.Type, rt.Type, primary.Type, primary.Type, rt.Type, primary.Type)
+`, rt.Type, primary.Type, rt.Type, primary.Type, rt.Type, primary.Type,
+							rt.Type, primary.Type, primary.Type, rt.Type, primary.Type)
 					}
 				}
 			}
 		}
 	}
 
-	// Format the generated code
+	// Format and write file
 	formatted, err := format.Source(buf.Bytes())
 	if err != nil {
-		return fmt.Errorf("failed to format source: %v", err)
+		return fmt.Errorf("failed to format source: %w", err)
 	}
 
-	// Write to file
 	filename := filepath.Join(outDir, "converters.go")
 	if err := os.WriteFile(filename, formatted, 0644); err != nil {
-		return fmt.Errorf("failed to write file: %v", err)
+		return fmt.Errorf("failed to write file: %w", err)
 	}
 
 	return nil

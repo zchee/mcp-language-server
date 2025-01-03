@@ -9,9 +9,18 @@ import (
 
 // ReturnType represents a possible return type for an LSP method
 type ReturnType struct {
-	Type         string // e.g. "DocumentSymbol"
-	IsSlice      bool   // whether this is []Type
-	NeedsConvert bool   // whether this type needs conversion to primary type
+	Type          string // e.g. "DocumentSymbol"
+	IsSlice       bool   // whether this is []Type
+	NeedsConvert  bool   // whether this type needs conversion to primary type
+	FieldMappings []FieldMapping
+}
+
+// Used when conversion is needed
+type FieldMapping struct {
+	SourceField string // field path in source type e.g. "Location.Range"
+	DestField   string // field name in dest type e.g. "Range"
+	SourceType  string // type of source field e.g. "protocol.Range"
+	DestType    string // type of dest field e.g. "protocol.Range"
 }
 
 // MethodDef defines an LSP method
