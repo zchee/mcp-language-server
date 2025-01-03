@@ -48,13 +48,25 @@ func TestTextDocumentDidChange(t *testing.T) {
 	// Test document changes
 	changes := []protocol.TextDocumentContentChangeEvent{
 		{
-			Range: &protocol.Range{
-				Start: protocol.Position{Line: 5, Character: 1},
-				End:   protocol.Position{Line: 5, Character: 6},
+			Value: protocol.TextDocumentContentChangePartial{
+				Range: &protocol.Range{
+					Start: protocol.Position{Line: 5, Character: 1},
+					End:   protocol.Position{Line: 5, Character: 6},
+				},
+				Text: "fmt.Printf",
 			},
-			Text: "fmt.Printf",
 		},
 	}
+
+	// changes = []protocol.TextDocumentContentChangeEvent{
+	// 	{
+	// 		Range: &protocol.Range{
+	// 			Start: protocol.Position{Line: 5, Character: 1},
+	// 			End:   protocol.Position{Line: 5, Character: 6},
+	// 		},
+	// 		Text: "fmt.Printf",
+	// 	},
+	// }
 
 	err = ts.wrapper.TextDocumentDidChange(protocol.DidChangeTextDocumentParams{
 		TextDocument: protocol.VersionedTextDocumentIdentifier{

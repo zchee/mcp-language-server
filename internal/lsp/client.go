@@ -15,11 +15,10 @@ import (
 
 // Client represents an LSP client instance
 type Client struct {
-	workspaceDir string
-	cmd          *exec.Cmd
-	stdin        io.WriteCloser
-	stdout       *bufio.Reader
-	stderr       io.ReadCloser
+	cmd    *exec.Cmd
+	stdin  io.WriteCloser
+	stdout *bufio.Reader
+	stderr io.ReadCloser
 
 	// Request ID counter
 	nextID atomic.Int32
@@ -40,7 +39,7 @@ type Client struct {
 type NotificationHandler func(method string, params json.RawMessage)
 
 // NewClient creates a new LSP client
-func NewClient(workspaceDir, command string, args ...string) (*Client, error) {
+func NewClient(command string, args ...string) (*Client, error) {
 	cmd := exec.Command(command, args...)
 
 	// Set up pipes for stdin, stdout, and stderr
@@ -61,7 +60,6 @@ func NewClient(workspaceDir, command string, args ...string) (*Client, error) {
 
 	client := &Client{
 		cmd:                  cmd,
-		workspaceDir:         workspaceDir,
 		stdin:                stdin,
 		stdout:               bufio.NewReader(stdout),
 		stderr:               stderr,

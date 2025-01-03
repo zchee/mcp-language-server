@@ -114,7 +114,7 @@ func main() {
 
 	// Create a new LSP client
 	fmt.Printf("Starting %s...\n", lspCmd.Command)
-	client, err := lsp.NewClient(lspCmd.WorkspaceDir, lspCmd.Command, lspCmd.Args...)
+	client, err := lsp.NewClient(lspCmd.Command, lspCmd.Args...)
 	if err != nil {
 		log.Fatalf("Failed to create LSP client: %v", err)
 	}

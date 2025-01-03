@@ -19,12 +19,7 @@ func main() {
 		log.Fatal("LSP_COMMAND environment variable not set")
 	}
 
-	workspaceDir := os.Getenv("WORKSPACEDIR")
-	if command == "" {
-		log.Fatal("WORKSPACEDIR environment variable not set")
-	}
-
-	client, err := lsp.NewClient(workspaceDir, command)
+	client, err := lsp.NewClient(command)
 	if err != nil {
 		log.Fatalf("Failed to create LSP client: %v", err)
 	}
