@@ -36,8 +36,8 @@ type Client struct {
 type NotificationHandler func(method string, params json.RawMessage)
 
 // NewClient creates a new LSP client
-func NewClient(command string) (*Client, error) {
-	cmd := exec.Command(command)
+func NewClient(command string, args ...string) (*Client, error) {
+	cmd := exec.Command(command, args...)
 
 	// Set up pipes for stdin, stdout, and stderr
 	stdin, err := cmd.StdinPipe()

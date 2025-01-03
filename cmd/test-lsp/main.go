@@ -2,51 +2,99 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
 	"github.com/isaacphi/mcp-language-server/internal/lsp/methods"
 	"github.com/kralicky/tools-lite/gopls/pkg/protocol"
 )
 
-func main() {
-	// Create a temporary workspace
-	tmpDir, err := os.MkdirTemp("", "lsp-test-*")
-	if err != nil {
-		log.Fatalf("Failed to create temp directory: %v", err)
+type LSPCommand struct {
+	Command string
+	Args    []string
+}
+
+// Parse a command string into command and arguments
+func parseLSPCommand(cmdStr string) LSPCommand {
+	parts := strings.Fields(cmdStr)
+	if len(parts) == 0 {
+		return LSPCommand{Command: "gopls"} // default to gopls with no args
 	}
-	defer os.RemoveAll(tmpDir)
-
-	// Create a simple Go file
-	testFile := filepath.Join(tmpDir, "main.go")
-	fileContent := []byte(`package main
-
-import "fmt"
+	return LSPCommand{
+		Command: parts[0],
+		Args:    parts[1:],
+	}
+}
 
 func main() {
-	fmt.Println("Hello, World!")
-}
+	// Define command line flags
+	var (
+		workspaceDir  string
+		lspCommandStr string
+		filePath      string
+	)
 
-func add(a, b int) int {
-	return a + b
-}
-`)
-	err = os.WriteFile(testFile, fileContent, 0644)
+	flag.StringVar(&workspaceDir, "workspace", "", "Path to workspace directory (optional)")
+	flag.StringVar(&lspCommandStr, "lsp", "gopls", "LSP command to run (e.g., 'gopls -remote=auto')")
+	flag.StringVar(&filePath, "file", "", "File to analyze (optional)")
+	flag.Parse()
+
+	if filePath == "" {
+		log.Fatal("File path is required. Use -file flag.")
+	}
+
+	// Convert file path to absolute path
+	absFilePath, err := filepath.Abs(filePath)
 	if err != nil {
-		log.Fatalf("Failed to create test file: %v", err)
+		log.Fatalf("Failed to get absolute path for file: %v", err)
+	}
+
+	// Handle workspace directory
+	if workspaceDir == "" {
+		workspaceDir = filepath.Dir(absFilePath)
+	} else {
+		// Convert workspace to absolute path if provided
+		workspaceDir, err = filepath.Abs(workspaceDir)
+		if err != nil {
+			log.Fatalf("Failed to get absolute path for workspace: %v", err)
+		}
+	}
+
+	// Validate workspace directory
+	if _, err := os.Stat(workspaceDir); os.IsNotExist(err) {
+		log.Fatalf("Workspace directory does not exist: %s", workspaceDir)
+	}
+
+	// Validate file exists
+	if _, err := os.Stat(absFilePath); os.IsNotExist(err) {
+		log.Fatalf("File does not exist: %s", absFilePath)
+	}
+
+	// Parse LSP command
+	lspCmd := parseLSPCommand(lspCommandStr)
+
+	// Verify the LSP command exists
+	if _, err := exec.LookPath(lspCmd.Command); err != nil {
+		log.Fatalf("LSP command not found: %s", lspCmd.Command)
 	}
 
 	// Change to the workspace directory
-	if err := os.Chdir(tmpDir); err != nil {
-		log.Fatalf("Failed to change directory: %v", err)
+	if err := os.Chdir(workspaceDir); err != nil {
+		log.Fatalf("Failed to change to workspace directory: %v", err)
 	}
 
-	// Create a new LSP client for gopls
-	fmt.Println("Starting gopls...")
-	client, err := lsp.NewClient("gopls")
+	fmt.Printf("Using workspace: %s\n", workspaceDir)
+	fmt.Printf("Analyzing file: %s\n", absFilePath)
+
+	// Create a new LSP client
+	fmt.Printf("Starting %s...\n", lspCmd.Command)
+	client, err := lsp.NewClient(lspCmd.Command, lspCmd.Args...)
 	if err != nil {
 		log.Fatalf("Failed to create LSP client: %v", err)
 	}
@@ -79,13 +127,19 @@ func add(a, b int) int {
 		log.Fatalf("Initialized notification failed: %v", err)
 	}
 
+	// Read the file content
+	fileContent, err := os.ReadFile(absFilePath)
+	if err != nil {
+		log.Fatalf("Failed to read file: %v", err)
+	}
+
 	// Test textDocument/didOpen
-	fmt.Println("Testing textDocument/didOpen...")
-	uri := protocol.DocumentURI("file://" + testFile)
+	fmt.Println("Opening document...")
+	uri := protocol.DocumentURI("file://" + absFilePath)
 	err = wrapper.TextDocumentDidOpen(protocol.DidOpenTextDocumentParams{
 		TextDocument: protocol.TextDocumentItem{
 			URI:        uri,
-			LanguageID: "go",
+			LanguageID: "go", // Note: This assumes Go files, might want to make this configurable
 			Version:    1,
 			Text:       string(fileContent),
 		},
@@ -93,10 +147,10 @@ func add(a, b int) int {
 	if err != nil {
 		log.Fatalf("TextDocumentDidOpen failed: %v", err)
 	}
-	fmt.Println("TextDocumentDidOpen successful")
+	fmt.Println("Document opened successfully")
 
 	// Test textDocument/documentSymbol
-	fmt.Println("\nTesting textDocument/documentSymbol...")
+	fmt.Println("\nGetting document symbols...")
 	symbols, err := wrapper.TextDocumentDocumentSymbol(protocol.DocumentSymbolParams{
 		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
 	})
@@ -113,28 +167,15 @@ func add(a, b int) int {
 		}
 	}
 
-	// Test textDocument/hover
-	fmt.Println("\nTesting textDocument/hover...")
-	hover, err := wrapper.TextDocumentHover(protocol.HoverParams{
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: protocol.TextDocumentIdentifier{URI: uri},
-			Position:    protocol.Position{Line: 8, Character: 5}, // Position on 'add' function
-		},
-	})
-	if err != nil {
-		log.Fatalf("TextDocumentHover failed: %v", err)
-	}
-	fmt.Printf("Hover result: %+v\n", hover)
-
 	// Test textDocument/didClose
-	fmt.Println("\nTesting textDocument/didClose...")
+	fmt.Println("\nClosing document...")
 	err = wrapper.TextDocumentDidClose(protocol.DidCloseTextDocumentParams{
 		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
 	})
 	if err != nil {
 		log.Fatalf("TextDocumentDidClose failed: %v", err)
 	}
-	fmt.Println("TextDocumentDidClose successful")
+	fmt.Println("Document closed successfully")
 
 	// Cleanup
 	fmt.Println("\nShutting down...")
