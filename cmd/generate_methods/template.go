@@ -69,3 +69,4 @@ func (w *Wrapper) {{.GoName}}({{if ne .RequestType "struct{}"}}params protocol.{
 }
 {{- end }}
 `
+

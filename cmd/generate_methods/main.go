@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"text/template"
 
-	"github.com/isaacphi/mcp-language-server/cmd/generate/methods"
+	"github.com/isaacphi/mcp-language-server/cmd/generate_methods/methods"
 )
 
 func main() {
@@ -52,7 +52,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/kralicky/tools-lite/gopls/pkg/protocol"
+	"github.com/isaacphi/mcp-language-server/internal/protocol"
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
 )
 
@@ -160,7 +160,7 @@ func generateConvertersFile(outDir string, methods []methods.MethodDef) error {
 package methods
 
 import (
-    "github.com/kralicky/tools-lite/gopls/pkg/protocol"
+    "github.com/isaacphi/mcp-language-server/internal/protocol"
 )
 `)
 

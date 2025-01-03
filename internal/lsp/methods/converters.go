@@ -2,7 +2,7 @@
 package methods
 
 import (
-	"github.com/kralicky/tools-lite/gopls/pkg/protocol"
+	"github.com/isaacphi/mcp-language-server/internal/protocol"
 )
 
 // convertSymbolInformationToDocumentSymbol converts from SymbolInformation to DocumentSymbol

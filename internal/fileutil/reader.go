@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/kralicky/tools-lite/gopls/pkg/protocol"
+	"github.com/isaacphi/mcp-language-server/internal/protocol"
 )
 
 // safeUint32ToInt converts a uint32 to int, capping at math.MaxInt32

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
-	"github.com/kralicky/tools-lite/gopls/pkg/protocol"
+	"github.com/isaacphi/mcp-language-server/internal/protocol"
 )
 
 type testServer struct {

@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
-	"github.com/kralicky/tools-lite/gopls/pkg/protocol"
+	"github.com/isaacphi/mcp-language-server/internal/protocol"
 )
 
 // Wrapper provides type-safe methods for LSP operations

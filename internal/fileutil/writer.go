@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/kralicky/tools-lite/gopls/pkg/protocol"
+	"github.com/isaacphi/mcp-language-server/internal/protocol"
 )
 
 // ReplaceLocationContent replaces the content between the start and end positions with new content

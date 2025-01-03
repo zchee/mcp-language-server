@@ -3,7 +3,7 @@ package methods
 import (
 	"testing"
 
-	"github.com/kralicky/tools-lite/gopls/pkg/protocol"
+	"github.com/isaacphi/mcp-language-server/internal/protocol"
 )
 
 func TestTextDocumentDidOpen(t *testing.T) {

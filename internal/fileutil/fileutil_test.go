@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kralicky/tools-lite/gopls/pkg/protocol"
+	"github.com/isaacphi/mcp-language-server/internal/protocol"
 )
 
 func setupTestFile(t *testing.T) (string, func()) {
