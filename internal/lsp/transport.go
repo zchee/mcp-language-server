@@ -5,14 +5,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
+	"os"
 	"strings"
 )
+
+var debug = os.Getenv("LSP_DEBUG") != ""
 
 // Write writes an LSP message to the given writer
 func WriteMessage(w io.Writer, msg *Message) error {
 	data, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %w", err)
+	}
+
+	if debug {
+		log.Printf("-> Sending: %s", string(data))
 	}
 
 	_, err = fmt.Fprintf(w, "Content-Length: %d\r\n\r\n", len(data))
@@ -39,6 +47,10 @@ func ReadMessage(r *bufio.Reader) (*Message, error) {
 		}
 		line = strings.TrimSpace(line)
 
+		if debug {
+			log.Printf("<- Header: %s", line)
+		}
+
 		if line == "" {
 			break // End of headers
 		}
@@ -51,11 +63,19 @@ func ReadMessage(r *bufio.Reader) (*Message, error) {
 		}
 	}
 
+	if debug {
+		log.Printf("<- Reading content with length: %d", contentLength)
+	}
+
 	// Read content
 	content := make([]byte, contentLength)
 	_, err := io.ReadFull(r, content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read content: %w", err)
+	}
+
+	if debug {
+		log.Printf("<- Received: %s", string(content))
 	}
 
 	// Parse message
@@ -72,30 +92,83 @@ func (c *Client) handleMessages() {
 	for {
 		msg, err := ReadMessage(c.stdout)
 		if err != nil {
-			// TODO: (possibly reconnect or notify error handlers)
+			if debug {
+				log.Printf("Error reading message: %v", err)
+			}
 			return
 		}
 
-		// Handle notification
+		// Handle server->client request (has both Method and ID)
+		if msg.Method != "" && msg.ID != 0 {
+			if debug {
+				log.Printf("Received request from server: method=%s id=%d", msg.Method, msg.ID)
+			}
+
+			// For server->client requests, respond with same ID
+			response := &Message{
+				JSONRPC: "2.0",
+				ID:      msg.ID,
+			}
+
+			// Different handling based on method
+			switch msg.Method {
+			case "workspace/configuration":
+				emptyConfig := []map[string]interface{}{{}}
+				rawJSON, err := json.Marshal(emptyConfig)
+				if err == nil {
+					response.Result = rawJSON
+				} else {
+					response.Error = &ResponseError{
+						Code:    -32603,
+						Message: fmt.Sprintf("failed to marshal config: %v", err),
+					}
+				}
+
+			case "client/registerCapability":
+				// Just acknowledge the registration by returning empty result
+				response.Result = json.RawMessage("null")
+			}
+
+			// Send response back to server
+			if err := WriteMessage(c.stdin, response); err != nil {
+				log.Printf("Error sending response to server: %v", err)
+			}
+
+			// Keep waiting for our actual response
+			continue
+		}
+
+		// Handle notification (has Method but no ID)
 		if msg.Method != "" && msg.ID == 0 {
 			c.notificationMu.RLock()
 			handler, ok := c.notificationHandlers[msg.Method]
 			c.notificationMu.RUnlock()
 
 			if ok {
+				if debug {
+					log.Printf("Handling notification: %s", msg.Method)
+				}
 				go handler(msg.Method, msg.Params)
+			} else if debug {
+				log.Printf("No handler for notification: %s", msg.Method)
 			}
 			continue
 		}
 
-		// Handle response
-		if msg.ID != 0 {
+		// Handle response to our request (has ID but no Method)
+		if msg.ID != 0 && msg.Method == "" {
 			c.handlersMu.RLock()
 			ch, ok := c.handlers[msg.ID]
 			c.handlersMu.RUnlock()
 
 			if ok {
+				if debug {
+					log.Printf("Sending response for ID %d to handler", msg.ID)
+				}
 				ch <- msg
+				close(ch)
+			} else if debug {
+				log.Printf("No handler for response ID: %d", msg.ID)
 			}
 		}
 	}
@@ -104,6 +177,10 @@ func (c *Client) handleMessages() {
 // Call makes a request and waits for the response
 func (c *Client) Call(method string, params interface{}, result interface{}) error {
 	id := c.nextID.Add(1)
+
+	if debug {
+		log.Printf("Making call: method=%s id=%d", method, id)
+	}
 
 	msg, err := NewRequest(id, method, params)
 	if err != nil {
@@ -127,8 +204,16 @@ func (c *Client) Call(method string, params interface{}, result interface{}) err
 		return fmt.Errorf("failed to send request: %w", err)
 	}
 
+	if debug {
+		log.Printf("Waiting for response to request ID: %d", id)
+	}
+
 	// Wait for response
 	resp := <-ch
+
+	if debug {
+		log.Printf("Received response for request ID: %d", id)
+	}
 
 	if resp.Error != nil {
 		return fmt.Errorf("request failed: %s (code: %d)", resp.Error.Message, resp.Error.Code)
@@ -151,6 +236,10 @@ func (c *Client) Call(method string, params interface{}, result interface{}) err
 
 // Notify sends a notification (a request without an ID that doesn't expect a response)
 func (c *Client) Notify(method string, params interface{}) error {
+	if debug {
+		log.Printf("Sending notification: method=%s", method)
+	}
+
 	msg, err := NewNotification(method, params)
 	if err != nil {
 		return fmt.Errorf("failed to create notification: %w", err)
@@ -161,4 +250,16 @@ func (c *Client) Notify(method string, params interface{}) error {
 	}
 
 	return nil
+}
+
+// RequestHandler handles requests from the server
+type RequestHandler interface {
+	Handle(method string, params json.RawMessage) (interface{}, error)
+}
+
+type workspaceConfigHandler struct{}
+
+func (h *workspaceConfigHandler) Handle(method string, params json.RawMessage) (interface{}, error) {
+	// For now, return empty config
+	return map[string]interface{}{}, nil
 }

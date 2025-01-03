@@ -16,8 +16,9 @@ import (
 )
 
 type LSPCommand struct {
-	Command string
-	Args    []string
+	WorkspaceDir string
+	Command      string
+	Args         []string
 }
 
 // Parse a command string into command and arguments
@@ -27,8 +28,25 @@ func parseLSPCommand(cmdStr string) LSPCommand {
 		return LSPCommand{Command: "gopls"} // default to gopls with no args
 	}
 	return LSPCommand{
-		Command: parts[0],
-		Args:    parts[1:],
+		WorkspaceDir: parts[0],
+		Command:      parts[1],
+		Args:         parts[2:],
+	}
+}
+
+func detectLanguageID(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".py":
+		return "python"
+	case ".go":
+		return "go"
+	case ".js":
+		return "javascript"
+	case ".ts":
+		return "typescript"
+	default:
+		return "plaintext"
 	}
 }
 
@@ -38,11 +56,13 @@ func main() {
 		workspaceDir  string
 		lspCommandStr string
 		filePath      string
+		debug         bool
 	)
 
 	flag.StringVar(&workspaceDir, "workspace", "", "Path to workspace directory (optional)")
 	flag.StringVar(&lspCommandStr, "lsp", "gopls", "LSP command to run (e.g., 'gopls -remote=auto')")
 	flag.StringVar(&filePath, "file", "", "File to analyze (optional)")
+	flag.BoolVar(&debug, "debug", false, "Enable debug logging")
 	flag.Parse()
 
 	if filePath == "" {
@@ -94,7 +114,7 @@ func main() {
 
 	// Create a new LSP client
 	fmt.Printf("Starting %s...\n", lspCmd.Command)
-	client, err := lsp.NewClient(lspCmd.Command, lspCmd.Args...)
+	client, err := lsp.NewClient(lspCmd.WorkspaceDir, lspCmd.Command, lspCmd.Args...)
 	if err != nil {
 		log.Fatalf("Failed to create LSP client: %v", err)
 	}
@@ -119,13 +139,30 @@ func main() {
 	if err != nil {
 		log.Fatalf("Initialize failed: %v", err)
 	}
-	fmt.Printf("Server initialized with capabilities: %+v\n\n", initResult.Capabilities)
+	if debug {
+		fmt.Printf("Server capabilities: %+v\n\n", initResult.Capabilities)
+	}
+
+	if initResult.Capabilities.DocumentSymbolProvider == nil {
+		log.Fatal("Server does not support document symbols")
+	}
 
 	// Send initialized notification
 	err = wrapper.Initialized(protocol.InitializedParams{})
 	if err != nil {
 		log.Fatalf("Initialized notification failed: %v", err)
 	}
+
+	// Send a virtual file to trigger analysis
+	virtualURI := protocol.DocumentURI("file://" + filepath.Join(workspaceDir, "__virtual_init__.py"))
+	err = wrapper.TextDocumentDidOpen(protocol.DidOpenTextDocumentParams{
+		TextDocument: protocol.TextDocumentItem{
+			URI:        virtualURI,
+			LanguageID: "python",
+			Version:    1,
+			Text:       "# Virtual file to trigger pyright analysis\n",
+		},
+	})
 
 	// Read the file content
 	fileContent, err := os.ReadFile(absFilePath)
@@ -136,10 +173,13 @@ func main() {
 	// Test textDocument/didOpen
 	fmt.Println("Opening document...")
 	uri := protocol.DocumentURI("file://" + absFilePath)
+	languageID := protocol.LanguageKind(detectLanguageID(absFilePath))
+	fmt.Printf("Using language ID: %s\n", languageID)
+
 	err = wrapper.TextDocumentDidOpen(protocol.DidOpenTextDocumentParams{
 		TextDocument: protocol.TextDocumentItem{
 			URI:        uri,
-			LanguageID: "go", // Note: This assumes Go files, might want to make this configurable
+			LanguageID: languageID,
 			Version:    1,
 			Text:       string(fileContent),
 		},
@@ -157,13 +197,31 @@ func main() {
 	if err != nil {
 		log.Fatalf("TextDocumentDocumentSymbol failed: %v", err)
 	}
-	documentSymbols, ok := symbols.([]protocol.DocumentSymbol)
-	if !ok {
-		fmt.Println("Got SymbolInformation instead of DocumentSymbol")
+
+	if symbols == nil {
+		fmt.Println("No symbols returned")
 	} else {
-		fmt.Println("Document symbols:")
-		for _, sym := range documentSymbols {
-			fmt.Printf("- %s (%s) at line %d\n", sym.Name, sym.Kind, sym.Range.Start.Line+1)
+		fmt.Printf("Raw symbol response type: %T\n", symbols)
+
+		// Try to handle both possible response types
+		switch v := symbols.(type) {
+		case []protocol.DocumentSymbol:
+			fmt.Println("Got DocumentSymbol response:")
+			for _, sym := range v {
+				fmt.Printf("- %s (%s) at line %d\n", sym.Name, sym.Kind, sym.Range.Start.Line+1)
+			}
+		case []protocol.SymbolInformation:
+			fmt.Println("Got SymbolInformation response:")
+			for _, sym := range v {
+				fmt.Printf("- %s (%s) at line %d\n", sym.Name, sym.Kind, sym.Location.Range.Start.Line+1)
+			}
+		default:
+			fmt.Printf("Unexpected symbol response type: %T\n", symbols)
+			// Print the raw response for debugging
+			if debug {
+				jsonBytes, _ := json.MarshalIndent(symbols, "", "  ")
+				fmt.Printf("Raw response:\n%s\n", string(jsonBytes))
+			}
 		}
 	}
 

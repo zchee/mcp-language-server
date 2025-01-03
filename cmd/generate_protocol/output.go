@@ -304,6 +304,7 @@ func genGenTypes() {
 			fmt.Fprintf(out, "// created for Literal (%s)\n", nt.name)
 			fmt.Fprintf(out, "type %s struct {%s\n", nm, linex(nt.line+1))
 			genProps(out, nt.properties, nt.name) // systematic name, not gopls name; is this a good choice?
+
 		case "or":
 			if !strings.HasPrefix(nm, "Or") {
 				// It was replaced by a narrower type defined elsewhere
@@ -319,6 +320,7 @@ func genGenTypes() {
 			fmt.Fprintf(out, "// created for Or %v\n", names)
 			fmt.Fprintf(out, "type %s struct {%s\n", nm, linex(nt.line+1))
 			fmt.Fprintf(out, "\tValue interface{} `json:\"value\"`\n")
+
 		case "and":
 			fmt.Fprintf(out, "// created for And\n")
 			fmt.Fprintf(out, "type %s struct {%s\n", nm, linex(nt.line+1))
@@ -371,6 +373,7 @@ func genConsts(model *Model) {
 		consts[nm] = vals.String()
 	}
 }
+
 func genMarshal() {
 	for _, nt := range genTypes {
 		nm := goplsName(nt.typ)
@@ -396,11 +399,57 @@ func genMarshal() {
 		buf.WriteString("}\n\n")
 
 		fmt.Fprintf(&buf, "func (t *%s) UnmarshalJSON(x []byte) error {\n", nm)
-		buf.WriteString("\tif string(x) == \"null\" {\n\t\tt.Value = nil\n\t\t\treturn nil\n\t}\n")
-		for i, nmx := range names {
-			fmt.Fprintf(&buf, "\tvar h%d %s\n", i, nmx)
-			fmt.Fprintf(&buf, "\tif err := json.Unmarshal(x, &h%d); err == nil {\n\t\tt.Value = h%d\n\t\t\treturn nil\n\t\t}\n", i, i)
+		buf.WriteString("\tif string(x) == \"null\" {\n\t\tt.Value = nil\n\t\treturn nil\n\t}\n")
+
+		// Try primitive types first with unique variable names
+		for _, nmx := range names {
+			switch nmx {
+			case "bool":
+				buf.WriteString("\tvar boolVal bool\n")
+				buf.WriteString("\tif err := json.Unmarshal(x, &boolVal); err == nil {\n")
+				buf.WriteString("\t\tt.Value = boolVal\n")
+				buf.WriteString("\t\treturn nil\n")
+				buf.WriteString("\t}\n")
+			case "string":
+				buf.WriteString("\tvar stringVal string\n")
+				buf.WriteString("\tif err := json.Unmarshal(x, &stringVal); err == nil {\n")
+				buf.WriteString("\t\tt.Value = stringVal\n")
+				buf.WriteString("\t\treturn nil\n")
+				buf.WriteString("\t}\n")
+			case "float64":
+				buf.WriteString("\tvar float64Val float64\n")
+				buf.WriteString("\tif err := json.Unmarshal(x, &float64Val); err == nil {\n")
+				buf.WriteString("\t\tt.Value = float64Val\n")
+				buf.WriteString("\t\treturn nil\n")
+				buf.WriteString("\t}\n")
+			case "int32":
+				buf.WriteString("\tvar int32Val int32\n")
+				buf.WriteString("\tif err := json.Unmarshal(x, &int32Val); err == nil {\n")
+				buf.WriteString("\t\tt.Value = int32Val\n")
+				buf.WriteString("\t\treturn nil\n")
+				buf.WriteString("\t}\n")
+			case "uint32":
+				buf.WriteString("\tvar uint32Val uint32\n")
+				buf.WriteString("\tif err := json.Unmarshal(x, &uint32Val); err == nil {\n")
+				buf.WriteString("\t\tt.Value = uint32Val\n")
+				buf.WriteString("\t\treturn nil\n")
+				buf.WriteString("\t}\n")
+			}
 		}
+
+		// Then try struct types
+		structIndex := 0
+		for _, nmx := range names {
+			switch nmx {
+			case "bool", "string", "int32", "uint32", "float64":
+				continue
+			default:
+				fmt.Fprintf(&buf, "\tvar h%d %s\n", structIndex, nmx)
+				fmt.Fprintf(&buf, "\tif err := json.Unmarshal(x, &h%d); err == nil {\n\t\tt.Value = h%d\n\t\treturn nil\n\t}\n", structIndex, structIndex)
+				structIndex++
+			}
+		}
+
 		fmt.Fprintf(&buf, "return &UnmarshalError{\"unmarshal failed to match one of %v\"}", names)
 		buf.WriteString("}\n\n")
 		jsons[nm] = buf.String()

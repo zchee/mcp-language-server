@@ -15,10 +15,11 @@ import (
 
 // Client represents an LSP client instance
 type Client struct {
-	cmd    *exec.Cmd
-	stdin  io.WriteCloser
-	stdout *bufio.Reader
-	stderr io.ReadCloser
+	workspaceDir string
+	cmd          *exec.Cmd
+	stdin        io.WriteCloser
+	stdout       *bufio.Reader
+	stderr       io.ReadCloser
 
 	// Request ID counter
 	nextID atomic.Int32
@@ -30,13 +31,16 @@ type Client struct {
 	// Notification handlers
 	notificationHandlers map[string]NotificationHandler
 	notificationMu       sync.RWMutex
+
+	// Debug mode
+	debug bool
 }
 
 // NotificationHandler is called when a notification is received
 type NotificationHandler func(method string, params json.RawMessage)
 
 // NewClient creates a new LSP client
-func NewClient(command string, args ...string) (*Client, error) {
+func NewClient(workspaceDir, command string, args ...string) (*Client, error) {
 	cmd := exec.Command(command, args...)
 
 	// Set up pipes for stdin, stdout, and stderr
@@ -57,11 +61,13 @@ func NewClient(command string, args ...string) (*Client, error) {
 
 	client := &Client{
 		cmd:                  cmd,
+		workspaceDir:         workspaceDir,
 		stdin:                stdin,
 		stdout:               bufio.NewReader(stdout),
 		stderr:               stderr,
 		handlers:             make(map[int32]chan *Message),
 		notificationHandlers: make(map[string]NotificationHandler),
+		debug:                os.Getenv("LSP_DEBUG") != "",
 	}
 
 	// Start the LSP server process
@@ -74,6 +80,9 @@ func NewClient(command string, args ...string) (*Client, error) {
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
 			fmt.Fprintf(os.Stderr, "LSP Server: %s\n", scanner.Text())
+		}
+		if err := scanner.Err(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading stderr: %v\n", err)
 		}
 	}()
 
@@ -100,25 +109,30 @@ func (c *Client) Initialize() (*protocol.InitializeResult, error) {
 	initParams := &protocol.InitializeParams{
 		XInitializeParams: protocol.XInitializeParams{
 			ProcessID: int32(os.Getpid()),
-			RootURI:   protocol.DocumentURI("file://" + cwd),
+			ClientInfo: &protocol.ClientInfo{
+				Name:    "mcp-language-server",
+				Version: "1.0.0",
+			},
+			RootURI: protocol.DocumentURI("file://" + cwd),
 			Capabilities: protocol.ClientCapabilities{
 				Workspace: protocol.WorkspaceClientCapabilities{
-					WorkspaceFolders: true,
-				},
-				TextDocument: protocol.TextDocumentClientCapabilities{
-					Completion: protocol.CompletionClientCapabilities{
-						CompletionItem: protocol.ClientCompletionItemOptions{
-							SnippetSupport: true,
-						},
+					Configuration: true,
+					DidChangeConfiguration: protocol.DidChangeConfigurationClientCapabilities{
+						DynamicRegistration: true,
+					},
+					DidChangeWatchedFiles: protocol.DidChangeWatchedFilesClientCapabilities{
+						DynamicRegistration: true,
 					},
 				},
-			},
-		},
-		WorkspaceFoldersInitializeParams: protocol.WorkspaceFoldersInitializeParams{
-			WorkspaceFolders: []protocol.WorkspaceFolder{
-				{
-					URI:  "file://" + cwd,
-					Name: "root",
+				TextDocument: protocol.TextDocumentClientCapabilities{
+					Synchronization: &protocol.TextDocumentSyncClientCapabilities{
+						DynamicRegistration: true,
+						DidSave:             true,
+					},
+					PublishDiagnostics: protocol.PublishDiagnosticsClientCapabilities{
+						VersionSupport: true,
+					},
+					DocumentSymbol: protocol.DocumentSymbolClientCapabilities{},
 				},
 			},
 		},
