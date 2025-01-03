@@ -48,6 +48,7 @@ func generateMethodsFile(outDir string, methods []methods.MethodDef) error {
 package methods
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 

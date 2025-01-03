@@ -49,7 +49,10 @@ func (w *Wrapper) {{.GoName}}({{if ne .RequestType "struct{}"}}params protocol.{
     // Try type {{$rt.Type}}
     {
         var result{{$i}} {{$rt.GoType}}
-        if err := json.Unmarshal(rawResult, &result{{$i}}); err == nil {
+        decoder := json.NewDecoder(bytes.NewReader(rawResult))
+        decoder.UseNumber()
+        decoder.DisallowUnknownFields()
+        if err := decoder.Decode(&result{{$i}}); err == nil {
             {{- if $rt.NeedsConvert }}
             {{- if $rt.IsSlice }}
             return convert{{$rt.Type}}SliceTo{{(index $method.ResponseTypes 0).Type}}Slice(result{{$i}}), nil

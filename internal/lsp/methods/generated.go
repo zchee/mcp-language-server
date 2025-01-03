@@ -2,6 +2,7 @@
 package methods
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -108,14 +109,20 @@ func (w *Wrapper) TextDocumentCompletion(params protocol.CompletionParams) (inte
 	// Try type CompletionList
 	{
 		var result0 protocol.CompletionList
-		if err := json.Unmarshal(rawResult, &result0); err == nil {
+		decoder := json.NewDecoder(bytes.NewReader(rawResult))
+		decoder.UseNumber()
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&result0); err == nil {
 			return result0, nil
 		}
 	}
 	// Try type CompletionItem
 	{
 		var result1 []protocol.CompletionItem
-		if err := json.Unmarshal(rawResult, &result1); err == nil {
+		decoder := json.NewDecoder(bytes.NewReader(rawResult))
+		decoder.UseNumber()
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&result1); err == nil {
 			return result1, nil
 		}
 	}
@@ -155,21 +162,30 @@ func (w *Wrapper) TextDocumentDefinition(params protocol.DefinitionParams) (inte
 	// Try type Location
 	{
 		var result0 protocol.Location
-		if err := json.Unmarshal(rawResult, &result0); err == nil {
+		decoder := json.NewDecoder(bytes.NewReader(rawResult))
+		decoder.UseNumber()
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&result0); err == nil {
 			return result0, nil
 		}
 	}
 	// Try type Location
 	{
 		var result1 []protocol.Location
-		if err := json.Unmarshal(rawResult, &result1); err == nil {
+		decoder := json.NewDecoder(bytes.NewReader(rawResult))
+		decoder.UseNumber()
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&result1); err == nil {
 			return result1, nil
 		}
 	}
 	// Try type DefinitionLink
 	{
 		var result2 []protocol.DefinitionLink
-		if err := json.Unmarshal(rawResult, &result2); err == nil {
+		decoder := json.NewDecoder(bytes.NewReader(rawResult))
+		decoder.UseNumber()
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&result2); err == nil {
 			return result2, nil
 		}
 	}
@@ -191,21 +207,30 @@ func (w *Wrapper) TextDocumentDeclaration(params protocol.DeclarationParams) (in
 	// Try type Location
 	{
 		var result0 protocol.Location
-		if err := json.Unmarshal(rawResult, &result0); err == nil {
+		decoder := json.NewDecoder(bytes.NewReader(rawResult))
+		decoder.UseNumber()
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&result0); err == nil {
 			return result0, nil
 		}
 	}
 	// Try type Location
 	{
 		var result1 []protocol.Location
-		if err := json.Unmarshal(rawResult, &result1); err == nil {
+		decoder := json.NewDecoder(bytes.NewReader(rawResult))
+		decoder.UseNumber()
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&result1); err == nil {
 			return result1, nil
 		}
 	}
 	// Try type DeclarationLink
 	{
 		var result2 []protocol.DeclarationLink
-		if err := json.Unmarshal(rawResult, &result2); err == nil {
+		decoder := json.NewDecoder(bytes.NewReader(rawResult))
+		decoder.UseNumber()
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&result2); err == nil {
 			return result2, nil
 		}
 	}
@@ -245,14 +270,20 @@ func (w *Wrapper) TextDocumentDocumentSymbol(params protocol.DocumentSymbolParam
 	// Try type DocumentSymbol
 	{
 		var result0 []protocol.DocumentSymbol
-		if err := json.Unmarshal(rawResult, &result0); err == nil {
+		decoder := json.NewDecoder(bytes.NewReader(rawResult))
+		decoder.UseNumber()
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&result0); err == nil {
 			return result0, nil
 		}
 	}
 	// Try type SymbolInformation
 	{
 		var result1 []protocol.SymbolInformation
-		if err := json.Unmarshal(rawResult, &result1); err == nil {
+		decoder := json.NewDecoder(bytes.NewReader(rawResult))
+		decoder.UseNumber()
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&result1); err == nil {
 			return convertSymbolInformationSliceToDocumentSymbolSlice(result1), nil
 		}
 	}
