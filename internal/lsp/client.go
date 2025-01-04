@@ -26,6 +26,10 @@ type Client struct {
 	handlers   map[int32]chan *Message
 	handlersMu sync.RWMutex
 
+	// Server request handlers
+	serverRequestHandlers map[string]ServerRequestHandler
+	serverHandlersMu      sync.RWMutex
+
 	// Notification handlers
 	notificationHandlers map[string]NotificationHandler
 	notificationMu       sync.RWMutex
@@ -56,13 +60,14 @@ func NewClient(command string, args ...string) (*Client, error) {
 	}
 
 	client := &Client{
-		cmd:                  cmd,
-		stdin:                stdin,
-		stdout:               bufio.NewReader(stdout),
-		stderr:               stderr,
-		handlers:             make(map[int32]chan *Message),
-		notificationHandlers: make(map[string]NotificationHandler),
-		debug:                os.Getenv("LSP_DEBUG") != "",
+		cmd:                   cmd,
+		stdin:                 stdin,
+		stdout:                bufio.NewReader(stdout),
+		stderr:                stderr,
+		handlers:              make(map[int32]chan *Message),
+		notificationHandlers:  make(map[string]NotificationHandler),
+		serverRequestHandlers: make(map[string]ServerRequestHandler),
+		debug:                 os.Getenv("LSP_DEBUG") != "",
 	}
 
 	// Start the LSP server process
@@ -91,6 +96,12 @@ func (c *Client) RegisterNotificationHandler(method string, handler Notification
 	c.notificationMu.Lock()
 	defer c.notificationMu.Unlock()
 	c.notificationHandlers[method] = handler
+}
+
+func (c *Client) RegisterServerRequestHandler(method string, handler ServerRequestHandler) {
+	c.serverHandlersMu.Lock()
+	defer c.serverHandlersMu.Unlock()
+	c.serverRequestHandlers[method] = handler
 }
 
 func (c *Client) Initialize() (*protocol.InitializeResult, error) {
@@ -139,6 +150,10 @@ func (c *Client) Initialize() (*protocol.InitializeResult, error) {
 	if err := c.Notify("initialized", struct{}{}); err != nil {
 		return nil, fmt.Errorf("initialized notification failed: %w", err)
 	}
+
+	// Register server to client request handlers
+	c.RegisterServerRequestHandler("workspace/configuration", &WorkspaceConfigurationHandler{})
+	c.RegisterServerRequestHandler("client/registerCapability", &RegisterCapabilityHandler{})
 
 	return &result, nil
 }

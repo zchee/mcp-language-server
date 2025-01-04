@@ -104,29 +104,39 @@ func (c *Client) handleMessages() {
 				log.Printf("Received request from server: method=%s id=%d", msg.Method, msg.ID)
 			}
 
-			// For server->client requests, respond with same ID
 			response := &Message{
 				JSONRPC: "2.0",
 				ID:      msg.ID,
 			}
 
-			// Different handling based on method
-			switch msg.Method {
-			case "workspace/configuration":
-				emptyConfig := []map[string]interface{}{{}}
-				rawJSON, err := json.Marshal(emptyConfig)
-				if err == nil {
-					response.Result = rawJSON
-				} else {
+			// Look up handler for this method
+			c.serverHandlersMu.RLock()
+			handler, ok := c.serverRequestHandlers[msg.Method]
+			c.serverHandlersMu.RUnlock()
+
+			if ok {
+				result, err := handler.Handle(msg.Params)
+				if err != nil {
 					response.Error = &ResponseError{
 						Code:    -32603,
-						Message: fmt.Sprintf("failed to marshal config: %v", err),
+						Message: err.Error(),
+					}
+				} else {
+					rawJSON, err := json.Marshal(result)
+					if err != nil {
+						response.Error = &ResponseError{
+							Code:    -32603,
+							Message: fmt.Sprintf("failed to marshal response: %v", err),
+						}
+					} else {
+						response.Result = rawJSON
 					}
 				}
-
-			case "client/registerCapability":
-				// Just acknowledge the registration by returning empty result
-				response.Result = json.RawMessage("null")
+			} else {
+				response.Error = &ResponseError{
+					Code:    -32601,
+					Message: fmt.Sprintf("method not found: %s", msg.Method),
+				}
 			}
 
 			// Send response back to server
@@ -134,7 +144,6 @@ func (c *Client) handleMessages() {
 				log.Printf("Error sending response to server: %v", err)
 			}
 
-			// Keep waiting for our actual response
 			continue
 		}
 
@@ -252,14 +261,6 @@ func (c *Client) Notify(method string, params interface{}) error {
 	return nil
 }
 
-// RequestHandler handles requests from the server
-type RequestHandler interface {
-	Handle(method string, params json.RawMessage) (interface{}, error)
-}
-
-type workspaceConfigHandler struct{}
-
-func (h *workspaceConfigHandler) Handle(method string, params json.RawMessage) (interface{}, error) {
-	// For now, return empty config
-	return map[string]interface{}{}, nil
+type ServerRequestHandler interface {
+	Handle(params json.RawMessage) (interface{}, error)
 }
