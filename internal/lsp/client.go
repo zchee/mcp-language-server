@@ -133,11 +133,31 @@ func (c *Client) Initialize() (*protocol.InitializeResult, error) {
 						DynamicRegistration: true,
 						DidSave:             true,
 					},
+					Completion: protocol.CompletionClientCapabilities{
+						CompletionItem: protocol.ClientCompletionItemOptions{},
+					},
+					DocumentSymbol: protocol.DocumentSymbolClientCapabilities{},
+					CodeAction: protocol.CodeActionClientCapabilities{
+						CodeActionLiteralSupport: protocol.ClientCodeActionLiteralOptions{
+							CodeActionKind: protocol.ClientCodeActionKindOptions{
+								ValueSet: []protocol.CodeActionKind{},
+							},
+						},
+					},
 					PublishDiagnostics: protocol.PublishDiagnosticsClientCapabilities{
 						VersionSupport: true,
 					},
-					DocumentSymbol: protocol.DocumentSymbolClientCapabilities{},
+					SemanticTokens: protocol.SemanticTokensClientCapabilities{
+						Requests: protocol.ClientSemanticTokensRequestOptions{
+							Range: &protocol.Or_ClientSemanticTokensRequestOptions_range{},
+							Full:  &protocol.Or_ClientSemanticTokensRequestOptions_full{},
+						},
+						TokenTypes:     []string{},
+						TokenModifiers: []string{},
+						Formats:        []protocol.TokenFormat{},
+					},
 				},
+				Window: protocol.WindowClientCapabilities{},
 			},
 		},
 	}
