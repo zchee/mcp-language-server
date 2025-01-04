@@ -2,7 +2,7 @@ package main
 
 var notificationTemplate = `
 // {{.GoName}} sends a {{.Category}} notification for {{.Name}}
-func (w *Wrapper) {{.GoName}}({{if ne .RequestType "struct{}"}}params protocol.{{.RequestType}}{{end}}) error {
+func (w *MethodCaller) {{.GoName}}({{if ne .RequestType "struct{}"}}params protocol.{{.RequestType}}{{end}}) error {
     {{if eq .RequestType "struct{}"}}
     return w.client.Notify("{{.Name}}", struct{}{})
     {{else}}
@@ -14,7 +14,7 @@ var requestTemplate = `
 // {{.GoName}} sends a {{.Category}} request for {{.Name}}
 {{- $method := . -}}
 {{- if eq (len .ResponseTypes) 0 }}
-func (w *Wrapper) {{.GoName}}({{if ne .RequestType "struct{}"}}params protocol.{{.RequestType}}{{end}}) error {
+func (w *MethodCaller) {{.GoName}}({{if ne .RequestType "struct{}"}}params protocol.{{.RequestType}}{{end}}) error {
     {{if eq .RequestType "struct{}"}}
     return w.client.Call("{{.Name}}", struct{}{}, nil)
     {{else}}
@@ -22,7 +22,7 @@ func (w *Wrapper) {{.GoName}}({{if ne .RequestType "struct{}"}}params protocol.{
     {{end}}
 }
 {{- else if eq (len .ResponseTypes) 1 }}
-func (w *Wrapper) {{.GoName}}({{if ne .RequestType "struct{}"}}params protocol.{{.RequestType}}{{end}}) ({{(index .ResponseTypes 0).GoType}}, error) {
+func (w *MethodCaller) {{.GoName}}({{if ne .RequestType "struct{}"}}params protocol.{{.RequestType}}{{end}}) ({{(index .ResponseTypes 0).GoType}}, error) {
     var result {{(index .ResponseTypes 0).GoType}}
     {{if eq .RequestType "struct{}"}}
     err := w.client.Call("{{.Name}}", struct{}{}, &result)
@@ -33,7 +33,7 @@ func (w *Wrapper) {{.GoName}}({{if ne .RequestType "struct{}"}}params protocol.{
 }
 {{- else }}
 // Returns: {{range $i, $rt := .ResponseTypes}}{{if $i}} or {{end}}{{$rt.GoType}}{{end}}
-func (w *Wrapper) {{.GoName}}({{if ne .RequestType "struct{}"}}params protocol.{{.RequestType}}{{end}}) (interface{}, error) {
+func (w *MethodCaller) {{.GoName}}({{if ne .RequestType "struct{}"}}params protocol.{{.RequestType}}{{end}}) (interface{}, error) {
     // Make single call and get raw response
     var rawResult json.RawMessage
     {{if eq .RequestType "struct{}"}}
@@ -69,4 +69,3 @@ func (w *Wrapper) {{.GoName}}({{if ne .RequestType "struct{}"}}params protocol.{
 }
 {{- end }}
 `
-

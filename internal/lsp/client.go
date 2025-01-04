@@ -13,7 +13,6 @@ import (
 	"github.com/isaacphi/mcp-language-server/internal/protocol"
 )
 
-// Client represents an LSP client instance
 type Client struct {
 	cmd    *exec.Cmd
 	stdin  io.WriteCloser
@@ -38,11 +37,9 @@ type Client struct {
 // NotificationHandler is called when a notification is received
 type NotificationHandler func(method string, params json.RawMessage)
 
-// NewClient creates a new LSP client
 func NewClient(command string, args ...string) (*Client, error) {
 	cmd := exec.Command(command, args...)
 
-	// Set up pipes for stdin, stdout, and stderr
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create stdin pipe: %w", err)
@@ -90,14 +87,12 @@ func NewClient(command string, args ...string) (*Client, error) {
 	return client, nil
 }
 
-// RegisterNotificationHandler registers a handler for a specific notification method
 func (c *Client) RegisterNotificationHandler(method string, handler NotificationHandler) {
 	c.notificationMu.Lock()
 	defer c.notificationMu.Unlock()
 	c.notificationHandlers[method] = handler
 }
 
-// Initialize initializes the LSP connection
 func (c *Client) Initialize() (*protocol.InitializeResult, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -109,7 +104,7 @@ func (c *Client) Initialize() (*protocol.InitializeResult, error) {
 			ProcessID: int32(os.Getpid()),
 			ClientInfo: &protocol.ClientInfo{
 				Name:    "mcp-language-server",
-				Version: "1.0.0",
+				Version: "0.1.0",
 			},
 			RootURI: protocol.DocumentURI("file://" + cwd),
 			Capabilities: protocol.ClientCapabilities{
@@ -141,7 +136,6 @@ func (c *Client) Initialize() (*protocol.InitializeResult, error) {
 		return nil, fmt.Errorf("initialize failed: %w", err)
 	}
 
-	// Send initialized notification
 	if err := c.Notify("initialized", struct{}{}); err != nil {
 		return nil, fmt.Errorf("initialized notification failed: %w", err)
 	}
@@ -149,7 +143,6 @@ func (c *Client) Initialize() (*protocol.InitializeResult, error) {
 	return &result, nil
 }
 
-// Close closes the LSP client and terminates the server
 func (c *Client) Close() error {
 	if err := c.stdin.Close(); err != nil {
 		return fmt.Errorf("failed to close stdin: %w", err)

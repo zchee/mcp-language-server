@@ -12,7 +12,7 @@ import (
 type testServer struct {
 	t           *testing.T
 	client      *lsp.Client
-	wrapper     *Wrapper
+	wrapper     *MethodCaller
 	workDir     string
 	initialized bool
 }
@@ -36,7 +36,7 @@ func newTestServer(t *testing.T) *testServer {
 	ts := &testServer{
 		t:       t,
 		client:  client,
-		wrapper: NewWrapper(client),
+		wrapper: NewMethodCaller(client),
 		workDir: tmpDir,
 	}
 

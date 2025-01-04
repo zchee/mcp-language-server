@@ -56,14 +56,14 @@ import (
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
 )
 
-// Wrapper provides type-safe methods for LSP operations
-type Wrapper struct {
+// MethodCaller provides type-safe methods for LSP operationsWrapper
+type MethodCaller struct {
 	client *lsp.Client
 }
 
-// NewWrapper creates a new LSP method wrapper
-func NewWrapper(client *lsp.Client) *Wrapper {
-	return &Wrapper{client: client}
+// NewMethodCaller creates a new LSP method wrapper
+func NewMethodCaller(client *lsp.Client) *MethodCaller {
+	return &MethodCaller{client: client}
 }
 `)
 

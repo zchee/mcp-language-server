@@ -1,3 +1,4 @@
+// Will return to this. Currently using test-lsp
 package main
 
 import (
@@ -26,7 +27,7 @@ func main() {
 	defer client.Close()
 
 	// Create the wrapper for type-safe method calls
-	wrapper := methods.NewWrapper(client)
+	wrapper := methods.NewMethodCaller(client)
 
 	// Register notification handler for window/showMessage
 	client.RegisterNotificationHandler("window/showMessage", func(method string, params json.RawMessage) {

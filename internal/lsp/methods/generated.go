@@ -10,18 +10,18 @@ import (
 	"github.com/isaacphi/mcp-language-server/internal/protocol"
 )
 
-// Wrapper provides type-safe methods for LSP operations
-type Wrapper struct {
+// MethodCaller provides type-safe methods for LSP operationsWrapper
+type MethodCaller struct {
 	client *lsp.Client
 }
 
-// NewWrapper creates a new LSP method wrapper
-func NewWrapper(client *lsp.Client) *Wrapper {
-	return &Wrapper{client: client}
+// NewMethodCaller creates a new LSP method wrapper
+func NewMethodCaller(client *lsp.Client) *MethodCaller {
+	return &MethodCaller{client: client}
 }
 
 // Initialize sends a General request for initialize
-func (w *Wrapper) Initialize(params protocol.InitializeParams) (protocol.InitializeResult, error) {
+func (w *MethodCaller) Initialize(params protocol.InitializeParams) (protocol.InitializeResult, error) {
 	var result protocol.InitializeResult
 
 	err := w.client.Call("initialize", params, &result)
@@ -30,56 +30,56 @@ func (w *Wrapper) Initialize(params protocol.InitializeParams) (protocol.Initial
 }
 
 // Initialized sends a General notification for initialized
-func (w *Wrapper) Initialized(params protocol.InitializedParams) error {
+func (w *MethodCaller) Initialized(params protocol.InitializedParams) error {
 
 	return w.client.Notify("initialized", params)
 
 }
 
 // Shutdown sends a General request for shutdown
-func (w *Wrapper) Shutdown() error {
+func (w *MethodCaller) Shutdown() error {
 
 	return w.client.Call("shutdown", struct{}{}, nil)
 
 }
 
 // Exit sends a General notification for exit
-func (w *Wrapper) Exit() error {
+func (w *MethodCaller) Exit() error {
 
 	return w.client.Notify("exit", struct{}{})
 
 }
 
 // TextDocumentDidOpen sends a TextDocument notification for textDocument/didOpen
-func (w *Wrapper) TextDocumentDidOpen(params protocol.DidOpenTextDocumentParams) error {
+func (w *MethodCaller) TextDocumentDidOpen(params protocol.DidOpenTextDocumentParams) error {
 
 	return w.client.Notify("textDocument/didOpen", params)
 
 }
 
 // TextDocumentDidChange sends a TextDocument notification for textDocument/didChange
-func (w *Wrapper) TextDocumentDidChange(params protocol.DidChangeTextDocumentParams) error {
+func (w *MethodCaller) TextDocumentDidChange(params protocol.DidChangeTextDocumentParams) error {
 
 	return w.client.Notify("textDocument/didChange", params)
 
 }
 
 // TextDocumentDidClose sends a TextDocument notification for textDocument/didClose
-func (w *Wrapper) TextDocumentDidClose(params protocol.DidCloseTextDocumentParams) error {
+func (w *MethodCaller) TextDocumentDidClose(params protocol.DidCloseTextDocumentParams) error {
 
 	return w.client.Notify("textDocument/didClose", params)
 
 }
 
 // TextDocumentWillSave sends a TextDocument notification for textDocument/willSave
-func (w *Wrapper) TextDocumentWillSave(params protocol.WillSaveTextDocumentParams) error {
+func (w *MethodCaller) TextDocumentWillSave(params protocol.WillSaveTextDocumentParams) error {
 
 	return w.client.Notify("textDocument/willSave", params)
 
 }
 
 // TextDocumentWillSaveWaitUntil sends a TextDocument request for textDocument/willSaveWaitUntil
-func (w *Wrapper) TextDocumentWillSaveWaitUntil(params protocol.WillSaveTextDocumentParams) ([]protocol.TextEdit, error) {
+func (w *MethodCaller) TextDocumentWillSaveWaitUntil(params protocol.WillSaveTextDocumentParams) ([]protocol.TextEdit, error) {
 	var result []protocol.TextEdit
 
 	err := w.client.Call("textDocument/willSaveWaitUntil", params, &result)
@@ -88,7 +88,7 @@ func (w *Wrapper) TextDocumentWillSaveWaitUntil(params protocol.WillSaveTextDocu
 }
 
 // TextDocumentDidSave sends a TextDocument notification for textDocument/didSave
-func (w *Wrapper) TextDocumentDidSave(params protocol.DidSaveTextDocumentParams) error {
+func (w *MethodCaller) TextDocumentDidSave(params protocol.DidSaveTextDocumentParams) error {
 
 	return w.client.Notify("textDocument/didSave", params)
 
@@ -96,7 +96,7 @@ func (w *Wrapper) TextDocumentDidSave(params protocol.DidSaveTextDocumentParams)
 
 // TextDocumentCompletion sends a TextDocument request for textDocument/completion
 // Returns: protocol.CompletionList or []protocol.CompletionItem
-func (w *Wrapper) TextDocumentCompletion(params protocol.CompletionParams) (interface{}, error) {
+func (w *MethodCaller) TextDocumentCompletion(params protocol.CompletionParams) (interface{}, error) {
 	// Make single call and get raw response
 	var rawResult json.RawMessage
 
@@ -130,7 +130,7 @@ func (w *Wrapper) TextDocumentCompletion(params protocol.CompletionParams) (inte
 }
 
 // TextDocumentHover sends a TextDocument request for textDocument/hover
-func (w *Wrapper) TextDocumentHover(params protocol.HoverParams) (protocol.Hover, error) {
+func (w *MethodCaller) TextDocumentHover(params protocol.HoverParams) (protocol.Hover, error) {
 	var result protocol.Hover
 
 	err := w.client.Call("textDocument/hover", params, &result)
@@ -139,7 +139,7 @@ func (w *Wrapper) TextDocumentHover(params protocol.HoverParams) (protocol.Hover
 }
 
 // TextDocumentSignatureHelp sends a TextDocument request for textDocument/signatureHelp
-func (w *Wrapper) TextDocumentSignatureHelp(params protocol.SignatureHelpParams) (protocol.SignatureHelp, error) {
+func (w *MethodCaller) TextDocumentSignatureHelp(params protocol.SignatureHelpParams) (protocol.SignatureHelp, error) {
 	var result protocol.SignatureHelp
 
 	err := w.client.Call("textDocument/signatureHelp", params, &result)
@@ -149,7 +149,7 @@ func (w *Wrapper) TextDocumentSignatureHelp(params protocol.SignatureHelpParams)
 
 // TextDocumentDefinition sends a TextDocument request for textDocument/definition
 // Returns: protocol.Location or []protocol.Location or []protocol.DefinitionLink
-func (w *Wrapper) TextDocumentDefinition(params protocol.DefinitionParams) (interface{}, error) {
+func (w *MethodCaller) TextDocumentDefinition(params protocol.DefinitionParams) (interface{}, error) {
 	// Make single call and get raw response
 	var rawResult json.RawMessage
 
@@ -194,7 +194,7 @@ func (w *Wrapper) TextDocumentDefinition(params protocol.DefinitionParams) (inte
 
 // TextDocumentDeclaration sends a TextDocument request for textDocument/declaration
 // Returns: protocol.Location or []protocol.Location or []protocol.DeclarationLink
-func (w *Wrapper) TextDocumentDeclaration(params protocol.DeclarationParams) (interface{}, error) {
+func (w *MethodCaller) TextDocumentDeclaration(params protocol.DeclarationParams) (interface{}, error) {
 	// Make single call and get raw response
 	var rawResult json.RawMessage
 
@@ -238,7 +238,7 @@ func (w *Wrapper) TextDocumentDeclaration(params protocol.DeclarationParams) (in
 }
 
 // TextDocumentReferences sends a TextDocument request for textDocument/references
-func (w *Wrapper) TextDocumentReferences(params protocol.ReferenceParams) ([]protocol.Location, error) {
+func (w *MethodCaller) TextDocumentReferences(params protocol.ReferenceParams) ([]protocol.Location, error) {
 	var result []protocol.Location
 
 	err := w.client.Call("textDocument/references", params, &result)
@@ -247,7 +247,7 @@ func (w *Wrapper) TextDocumentReferences(params protocol.ReferenceParams) ([]pro
 }
 
 // TextDocumentDocumentHighlight sends a TextDocument request for textDocument/documentHighlight
-func (w *Wrapper) TextDocumentDocumentHighlight(params protocol.DocumentHighlightParams) ([]protocol.DocumentHighlight, error) {
+func (w *MethodCaller) TextDocumentDocumentHighlight(params protocol.DocumentHighlightParams) ([]protocol.DocumentHighlight, error) {
 	var result []protocol.DocumentHighlight
 
 	err := w.client.Call("textDocument/documentHighlight", params, &result)
@@ -257,7 +257,7 @@ func (w *Wrapper) TextDocumentDocumentHighlight(params protocol.DocumentHighligh
 
 // TextDocumentDocumentSymbol sends a TextDocument request for textDocument/documentSymbol
 // Returns: []protocol.DocumentSymbol or []protocol.SymbolInformation
-func (w *Wrapper) TextDocumentDocumentSymbol(params protocol.DocumentSymbolParams) (interface{}, error) {
+func (w *MethodCaller) TextDocumentDocumentSymbol(params protocol.DocumentSymbolParams) (interface{}, error) {
 	// Make single call and get raw response
 	var rawResult json.RawMessage
 
@@ -291,7 +291,7 @@ func (w *Wrapper) TextDocumentDocumentSymbol(params protocol.DocumentSymbolParam
 }
 
 // TextDocumentFormatting sends a TextDocument request for textDocument/formatting
-func (w *Wrapper) TextDocumentFormatting(params protocol.DocumentFormattingParams) ([]protocol.TextEdit, error) {
+func (w *MethodCaller) TextDocumentFormatting(params protocol.DocumentFormattingParams) ([]protocol.TextEdit, error) {
 	var result []protocol.TextEdit
 
 	err := w.client.Call("textDocument/formatting", params, &result)
@@ -300,7 +300,7 @@ func (w *Wrapper) TextDocumentFormatting(params protocol.DocumentFormattingParam
 }
 
 // TextDocumentRangeFormatting sends a TextDocument request for textDocument/rangeFormatting
-func (w *Wrapper) TextDocumentRangeFormatting(params protocol.DocumentRangeFormattingParams) ([]protocol.TextEdit, error) {
+func (w *MethodCaller) TextDocumentRangeFormatting(params protocol.DocumentRangeFormattingParams) ([]protocol.TextEdit, error) {
 	var result []protocol.TextEdit
 
 	err := w.client.Call("textDocument/rangeFormatting", params, &result)

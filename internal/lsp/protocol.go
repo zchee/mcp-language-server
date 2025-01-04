@@ -20,7 +20,6 @@ type ResponseError struct {
 	Message string `json:"message"`
 }
 
-// Request creates a new request message
 func NewRequest(id int32, method string, params interface{}) (*Message, error) {
 	paramsJSON, err := json.Marshal(params)
 	if err != nil {
@@ -35,7 +34,6 @@ func NewRequest(id int32, method string, params interface{}) (*Message, error) {
 	}, nil
 }
 
-// NewNotification creates a new notification message
 func NewNotification(method string, params interface{}) (*Message, error) {
 	paramsJSON, err := json.Marshal(params)
 	if err != nil {
