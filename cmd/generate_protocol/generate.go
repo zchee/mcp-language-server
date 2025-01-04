@@ -9,6 +9,9 @@ import (
 	"fmt"
 	"log"
 	"strings"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // a newType is a type that needs a name and a definition
@@ -112,7 +115,8 @@ func goName(s string) string {
 	}
 	if s != "string" { // base types are unchanged (textDocuemnt/diagnostic)
 		// Title is deprecated, but a) s is only one word, b) replacement is too heavy-weight
-		s = strings.Title(s)
+		s = cases.Title(language.English, cases.NoLower).String(s)
+		// s = strings.Title(s)
 	}
 	return s
 }

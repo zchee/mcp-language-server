@@ -164,6 +164,10 @@ func main() {
 		},
 	})
 
+	if err != nil {
+		log.Fatalf("TextDocuemntDidOpen failed: %v", err)
+	}
+
 	// Read the file content
 	fileContent, err := os.ReadFile(absFilePath)
 	if err != nil {
@@ -208,12 +212,12 @@ func main() {
 		case []protocol.DocumentSymbol:
 			fmt.Println("Got DocumentSymbol response:")
 			for _, sym := range v {
-				fmt.Printf("- %s (%s) at line %d\n", sym.Name, sym.Kind, sym.Range.Start.Line+1)
+				fmt.Printf("- %s (%v) at line %d\n", sym.Name, sym.Kind, sym.Range.Start.Line+1)
 			}
 		case []protocol.SymbolInformation:
 			fmt.Println("Got SymbolInformation response:")
 			for _, sym := range v {
-				fmt.Printf("- %s (%s) at line %d\n", sym.Name, sym.Kind, sym.Location.Range.Start.Line+1)
+				fmt.Printf("- %s (%v) at line %d\n", sym.Name, sym.Kind, sym.Location.Range.Start.Line+1)
 			}
 		default:
 			fmt.Printf("Unexpected symbol response type: %T\n", symbols)

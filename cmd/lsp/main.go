@@ -96,7 +96,7 @@ func main() {
 func printSymbols(symbols []protocol.DocumentSymbol, level int) {
 	indent := strings.Repeat("  ", level)
 	for _, symbol := range symbols {
-		fmt.Printf("%s- %s (%s) at line %d\n",
+		fmt.Printf("%s- %s (%v) at line %d\n",
 			indent,
 			symbol.Name,
 			symbol.Kind,
