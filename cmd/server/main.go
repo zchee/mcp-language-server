@@ -1,44 +1,30 @@
 package main
 
 import (
-	"fmt"
+	"github.com/isaacphi/mcp-language-server/internal/tools"
 	"github.com/metoro-io/mcp-golang"
 	"github.com/metoro-io/mcp-golang/transport/stdio"
 )
 
-// Tool arguments are just structs, annotated with jsonschema tags
-// More at https://mcpgolang.com/tools#schema-generation
-type Arguments struct {
-	Title       string `json:"title" jsonschema:"required,description=The title to submit"`
-	Description string `json:"description" jsonschema:"description=The description to submit"`
-}
-
-type MyFunctionsArguments struct {
-	Submitter string    `json:"submitter" jsonschema:"required,description=The name of the thing calling this tool (openai, google, claude, etc)"`
-	Content   Arguments `json:"content" jsonschema:"required,description=The content of the message"`
+type GetDefinitionArgs struct {
+	SymbolName string `json:"symbolName" jsonschema:"required,description=The exact name of the symbol (function, class or something else) to fetch."`
 }
 
 func main() {
 	done := make(chan struct{})
 
 	server := mcp_golang.NewServer(stdio.NewStdioServerTransport())
-	err := server.RegisterTool("hello", "Say hello to a person", func(arguments Arguments) (*mcp_golang.ToolResponse, error) {
-		return mcp_golang.NewToolResponse(mcp_golang.NewTextContent(fmt.Sprintf("Hello, %s!", arguments.Description))), nil
-	})
-	if err != nil {
-		panic(err)
-	}
 
-	err = server.RegisterPrompt("promt_test", "This is a test prompt", func(arguments Arguments) (*mcp_golang.PromptResponse, error) {
-		return mcp_golang.NewPromptResponse("description", mcp_golang.NewPromptMessage(mcp_golang.NewTextContent(fmt.Sprintf("Hello, %s!", arguments.Title)), mcp_golang.RoleUser)), nil
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	err = server.RegisterResource("test://resource", "resource_test", "This is a test resource", "application/json", func() (*mcp_golang.ResourceResponse, error) {
-		return mcp_golang.NewResourceResponse(mcp_golang.NewTextEmbeddedResource("test://resource", "This is a test resource", "application/json")), nil
-	})
+	err := server.RegisterTool(
+		"Get definition",
+		"Read the source code for a given symbol from the codebase",
+		func(args GetDefinitionArgs) (*mcp_golang.ToolResponse, error) {
+			content, err := tools.GetDefinition(args.SymbolName)
+			if err != nil {
+				return nil, err
+			}
+			return mcp_golang.NewToolResponse(mcp_golang.NewTextContent(content)), nil
+		})
 	if err != nil {
 		panic(err)
 	}

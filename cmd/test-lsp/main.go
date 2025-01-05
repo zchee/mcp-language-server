@@ -153,21 +153,6 @@ func main() {
 		log.Fatalf("Initialized notification failed: %v", err)
 	}
 
-	// // Send a virtual file to trigger analysis
-	// virtualURI := protocol.DocumentURI("file://" + filepath.Join(workspaceDir, "__virtual_init__.py"))
-	// err = wrapper.TextDocumentDidOpen(protocol.DidOpenTextDocumentParams{
-	// 	TextDocument: protocol.TextDocumentItem{
-	// 		URI:        virtualURI,
-	// 		LanguageID: "python",
-	// 		Version:    1,
-	// 		Text:       "# Virtual file to trigger pyright analysis\n",
-	// 	},
-	// })
-	//
-	// if err != nil {
-	// 	log.Fatalf("TextDocuemntDidOpen failed: %v", err)
-	// }
-
 	// Read the file content
 	fileContent, err := os.ReadFile(absFilePath)
 	if err != nil {
