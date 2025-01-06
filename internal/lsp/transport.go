@@ -264,3 +264,5 @@ func (c *Client) Notify(method string, params interface{}) error {
 type ServerRequestHandler interface {
 	Handle(params json.RawMessage) (interface{}, error)
 }
+
+type NotificationHandler func(method string, params json.RawMessage)

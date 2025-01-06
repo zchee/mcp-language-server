@@ -38,9 +38,6 @@ type Client struct {
 	debug bool
 }
 
-// NotificationHandler is called when a notification is received
-type NotificationHandler func(method string, params json.RawMessage)
-
 func NewClient(command string, args ...string) (*Client, error) {
 	cmd := exec.Command(command, args...)
 
@@ -171,9 +168,18 @@ func (c *Client) Initialize() (*protocol.InitializeResult, error) {
 		return nil, fmt.Errorf("initialized notification failed: %w", err)
 	}
 
-	// Register server to client request handlers
+	// Register server to client request and notification handlers
 	c.RegisterServerRequestHandler("workspace/configuration", &WorkspaceConfigurationHandler{})
 	c.RegisterServerRequestHandler("client/registerCapability", &RegisterCapabilityHandler{})
+	c.RegisterNotificationHandler("window/showMessage", func(method string, params json.RawMessage) {
+		var msg struct {
+			Type    int    `json:"type"`
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(params, &msg); err == nil {
+			fmt.Printf("Server message: %s\n", msg.Message)
+		}
+	})
 
 	return &result, nil
 }

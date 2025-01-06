@@ -24,13 +24,9 @@ type LSPCommand struct {
 // Parse a command string into command and arguments
 func parseLSPCommand(cmdStr string) LSPCommand {
 	parts := strings.Fields(cmdStr)
-	if len(parts) == 0 {
-		return LSPCommand{Command: "gopls"} // default to gopls with no args
-	}
 	return LSPCommand{
-		WorkspaceDir: parts[0],
-		Command:      parts[1],
-		Args:         parts[2:],
+		Command: parts[0],
+		Args:    parts[1:],
 	}
 }
 
