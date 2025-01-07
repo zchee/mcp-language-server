@@ -375,6 +375,7 @@ func genConsts(model *Model) {
 }
 
 func genMarshal() {
+	decoderIndex := 0
 	for _, nt := range genTypes {
 		nm := goplsName(nt.typ)
 		if !strings.HasPrefix(nm, "Or") {
@@ -388,6 +389,8 @@ func genMarshal() {
 		}
 		sort.Strings(names)
 		var buf bytes.Buffer
+
+		// MarshalJSON remains the same
 		fmt.Fprintf(&buf, "func (t %s) MarshalJSON() ([]byte, error) {\n", nm)
 		buf.WriteString("\tswitch x := t.Value.(type){\n")
 		for _, nmx := range names {
@@ -398,59 +401,72 @@ func genMarshal() {
 		fmt.Fprintf(&buf, "\treturn nil, fmt.Errorf(\"type %%T not one of %v\", t)\n", names)
 		buf.WriteString("}\n\n")
 
+		// Updated UnmarshalJSON
 		fmt.Fprintf(&buf, "func (t *%s) UnmarshalJSON(x []byte) error {\n", nm)
 		buf.WriteString("\tif string(x) == \"null\" {\n\t\tt.Value = nil\n\t\treturn nil\n\t}\n")
 
-		// Try primitive types first with unique variable names
+		// Try primitive types first with unique variable names and strict decoder
 		for _, nmx := range names {
 			switch nmx {
 			case "bool":
-				buf.WriteString("\tvar boolVal bool\n")
-				buf.WriteString("\tif err := json.Unmarshal(x, &boolVal); err == nil {\n")
-				buf.WriteString("\t\tt.Value = boolVal\n")
-				buf.WriteString("\t\treturn nil\n")
-				buf.WriteString("\t}\n")
+				fmt.Fprintf(&buf, "\tdecoder%d := json.NewDecoder(bytes.NewReader(x))\n", decoderIndex)
+				fmt.Fprintf(&buf, "\tdecoder%d.DisallowUnknownFields()\n", decoderIndex)
+				fmt.Fprintf(&buf, "\tvar boolVal bool\n")
+				fmt.Fprintf(&buf, "\tif err := decoder%d.Decode(&boolVal); err == nil {\n", decoderIndex)
+				fmt.Fprintf(&buf, "\t\tt.Value = boolVal\n")
+				fmt.Fprintf(&buf, "\t\treturn nil\n")
+				fmt.Fprintf(&buf, "\t}\n")
 			case "string":
-				buf.WriteString("\tvar stringVal string\n")
-				buf.WriteString("\tif err := json.Unmarshal(x, &stringVal); err == nil {\n")
-				buf.WriteString("\t\tt.Value = stringVal\n")
-				buf.WriteString("\t\treturn nil\n")
-				buf.WriteString("\t}\n")
+				fmt.Fprintf(&buf, "\tdecoder%d := json.NewDecoder(bytes.NewReader(x))\n", decoderIndex)
+				fmt.Fprintf(&buf, "\tdecoder%d.DisallowUnknownFields()\n", decoderIndex)
+				fmt.Fprintf(&buf, "\tvar stringVal string\n")
+				fmt.Fprintf(&buf, "\tif err := decoder%d.Decode(&stringVal); err == nil {\n", decoderIndex)
+				fmt.Fprintf(&buf, "\t\tt.Value = stringVal\n")
+				fmt.Fprintf(&buf, "\t\treturn nil\n")
+				fmt.Fprintf(&buf, "\t}\n")
 			case "float64":
-				buf.WriteString("\tvar float64Val float64\n")
-				buf.WriteString("\tif err := json.Unmarshal(x, &float64Val); err == nil {\n")
-				buf.WriteString("\t\tt.Value = float64Val\n")
-				buf.WriteString("\t\treturn nil\n")
-				buf.WriteString("\t}\n")
+				fmt.Fprintf(&buf, "\tdecoder%d := json.NewDecoder(bytes.NewReader(x))\n", decoderIndex)
+				fmt.Fprintf(&buf, "\tdecoder%d.DisallowUnknownFields()\n", decoderIndex)
+				fmt.Fprintf(&buf, "\tvar float64Val float64\n")
+				fmt.Fprintf(&buf, "\tif err := decoder%d.Decode(&float64Val); err == nil {\n", decoderIndex)
+				fmt.Fprintf(&buf, "\t\tt.Value = float64Val\n")
+				fmt.Fprintf(&buf, "\t\treturn nil\n")
+				fmt.Fprintf(&buf, "\t}\n")
 			case "int32":
-				buf.WriteString("\tvar int32Val int32\n")
-				buf.WriteString("\tif err := json.Unmarshal(x, &int32Val); err == nil {\n")
-				buf.WriteString("\t\tt.Value = int32Val\n")
-				buf.WriteString("\t\treturn nil\n")
-				buf.WriteString("\t}\n")
+				fmt.Fprintf(&buf, "\tdecoder%d := json.NewDecoder(bytes.NewReader(x))\n", decoderIndex)
+				fmt.Fprintf(&buf, "\tdecoder%d.DisallowUnknownFields()\n", decoderIndex)
+				fmt.Fprintf(&buf, "\tvar int32Val int32\n")
+				fmt.Fprintf(&buf, "\tif err := decoder%d.Decode(&int32Val); err == nil {\n", decoderIndex)
+				fmt.Fprintf(&buf, "\t\tt.Value = int32Val\n")
+				fmt.Fprintf(&buf, "\t\treturn nil\n")
+				fmt.Fprintf(&buf, "\t}\n")
 			case "uint32":
-				buf.WriteString("\tvar uint32Val uint32\n")
-				buf.WriteString("\tif err := json.Unmarshal(x, &uint32Val); err == nil {\n")
-				buf.WriteString("\t\tt.Value = uint32Val\n")
-				buf.WriteString("\t\treturn nil\n")
-				buf.WriteString("\t}\n")
+				fmt.Fprintf(&buf, "\tdecoder%d := json.NewDecoder(bytes.NewReader(x))\n", decoderIndex)
+				fmt.Fprintf(&buf, "\tdecoder%d.DisallowUnknownFields()\n", decoderIndex)
+				fmt.Fprintf(&buf, "\tvar uint32Val uint32\n")
+				fmt.Fprintf(&buf, "\tif err := decoder%d.Decode(&uint32Val); err == nil {\n", decoderIndex)
+				fmt.Fprintf(&buf, "\t\tt.Value = uint32Val\n")
+				fmt.Fprintf(&buf, "\t\treturn nil\n")
+				fmt.Fprintf(&buf, "\t}\n")
 			}
+			decoderIndex++
+
 		}
 
-		// Then try struct types
-		structIndex := 0
+		// Then try struct types with strict decoder
 		for _, nmx := range names {
 			switch nmx {
 			case "bool", "string", "int32", "uint32", "float64":
 				continue
 			default:
-				fmt.Fprintf(&buf, "\tvar h%d %s\n", structIndex, nmx)
-				fmt.Fprintf(&buf, "\tif err := json.Unmarshal(x, &h%d); err == nil {\n\t\tt.Value = h%d\n\t\treturn nil\n\t}\n", structIndex, structIndex)
-				structIndex++
+				fmt.Fprintf(&buf, "\tdecoder%d := json.NewDecoder(bytes.NewReader(x))\n", decoderIndex)
+				fmt.Fprintf(&buf, "\tdecoder%d.DisallowUnknownFields()\n", decoderIndex)
+				fmt.Fprintf(&buf, "\tvar h%d %s\n", decoderIndex, nmx)
+				fmt.Fprintf(&buf, "\tif err := decoder%d.Decode(&h%d); err == nil {\n\t\tt.Value = h%d\n\t\treturn nil\n\t}\n", decoderIndex, decoderIndex, decoderIndex)
 			}
+			decoderIndex++
 		}
-
-		fmt.Fprintf(&buf, "return &UnmarshalError{\"unmarshal failed to match one of %v\"}", names)
+		fmt.Fprintf(&buf, "\treturn &UnmarshalError{\"unmarshal failed to match one of %v\"}", names)
 		buf.WriteString("}\n\n")
 		jsons[nm] = buf.String()
 	}

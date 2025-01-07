@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
-	"github.com/isaacphi/mcp-language-server/internal/lsp/methods"
 	"github.com/isaacphi/mcp-language-server/internal/protocol"
 )
 
@@ -116,9 +116,6 @@ func main() {
 	}
 	defer client.Close()
 
-	// Create the wrapper for type-safe method calls
-	wrapper := methods.NewMethodCaller(client)
-
 	// Register notification handler for window/showMessage
 	client.RegisterNotificationHandler("window/showMessage", func(method string, params json.RawMessage) {
 		var msg struct {
@@ -131,7 +128,8 @@ func main() {
 	})
 
 	// Initialize
-	initResult, err := client.Initialize()
+	ctx := context.Background()
+	initResult, err := client.InitializeLSPClient()
 	if err != nil {
 		log.Fatalf("Initialize failed: %v", err)
 	}
@@ -144,7 +142,7 @@ func main() {
 	}
 
 	// Send initialized notification
-	err = wrapper.Initialized(protocol.InitializedParams{})
+	err = client.Initialized(ctx, protocol.InitializedParams{})
 	if err != nil {
 		log.Fatalf("Initialized notification failed: %v", err)
 	}
@@ -161,7 +159,7 @@ func main() {
 	languageID := protocol.LanguageKind(detectLanguageID(absFilePath))
 	fmt.Printf("Using language ID: %s\n", languageID)
 
-	err = wrapper.TextDocumentDidOpen(protocol.DidOpenTextDocumentParams{
+	err = client.DidOpen(ctx, protocol.DidOpenTextDocumentParams{
 		TextDocument: protocol.TextDocumentItem{
 			URI:        uri,
 			LanguageID: languageID,
@@ -176,43 +174,34 @@ func main() {
 
 	// Test textDocument/documentSymbol
 	fmt.Println("\nGetting document symbols...")
-	symbols, err := wrapper.TextDocumentDocumentSymbol(protocol.DocumentSymbolParams{
+	symbols, err := client.DocumentSymbol(ctx, protocol.DocumentSymbolParams{
 		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
 	})
 	if err != nil {
 		log.Fatalf("TextDocumentDocumentSymbol failed: %v", err)
 	}
 
-	if symbols == nil {
-		fmt.Println("No symbols returned")
-	} else {
-		fmt.Printf("Raw symbol response type: %T\n", symbols)
-
-		// Try to handle both possible response types
-		switch v := symbols.(type) {
-		case []protocol.DocumentSymbol:
-			fmt.Println("Got DocumentSymbol response:")
-			for _, sym := range v {
-				fmt.Printf("- %s (%v) at line %d\n", sym.Name, sym.Kind, sym.Range.Start.Line+1)
-			}
-		case []protocol.SymbolInformation:
-			fmt.Println("Got SymbolInformation response:")
-			for _, sym := range v {
-				fmt.Printf("- %s (%v) at line %d\n", sym.Name, sym.Kind, sym.Location.Range.Start.Line+1)
-			}
-		default:
-			fmt.Printf("Unexpected symbol response type: %T\n", symbols)
-			// Print the raw response for debugging
-			if debug {
-				jsonBytes, _ := json.MarshalIndent(symbols, "", "  ")
-				fmt.Printf("Raw response:\n%s\n", string(jsonBytes))
-			}
+	// Now check the resulting type
+	switch v := symbols.Value.(type) {
+	case []protocol.SymbolInformation:
+		fmt.Println("Got SymbolInformation response:")
+		for _, sym := range v {
+			fmt.Printf("- %s (%v) at line %d\n", sym.Name, sym.Kind, sym.Location.Range.Start.Line+1)
+		}
+	case []protocol.DocumentSymbol:
+		fmt.Println("Got DocumentSymbol response:")
+		printDocumentSymbols(v, "  ")
+	default:
+		fmt.Printf("Unexpected symbol response type: %T\n", symbols.Value)
+		if debug {
+			jsonBytes, _ := json.MarshalIndent(symbols, "", "  ")
+			fmt.Printf("Raw response:\n%s\n", string(jsonBytes))
 		}
 	}
 
 	// Test textDocument/didClose
 	fmt.Println("\nClosing document...")
-	err = wrapper.TextDocumentDidClose(protocol.DidCloseTextDocumentParams{
+	err = client.DidClose(ctx, protocol.DidCloseTextDocumentParams{
 		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
 	})
 	if err != nil {
@@ -222,14 +211,48 @@ func main() {
 
 	// Cleanup
 	fmt.Println("\nShutting down...")
-	err = wrapper.Shutdown()
+	err = client.Shutdown(ctx)
 	if err != nil {
 		log.Fatalf("Shutdown failed: %v", err)
 	}
 
-	err = wrapper.Exit()
+	err = client.Exit(ctx)
 	if err != nil {
 		log.Fatalf("Exit failed: %v", err)
 	}
 	fmt.Println("Server shut down successfully")
+}
+
+func printDocumentSymbols(symbols []protocol.DocumentSymbol, indent string) {
+	for _, sym := range symbols {
+		// Print current symbol with indentation
+		fmt.Printf("%s%s (%v) line %d",
+			indent,
+			sym.Name,
+			sym.Kind,
+			sym.Range.Start.Line+1,
+		)
+
+		// Print detail if available
+		if sym.Detail != "" {
+			fmt.Printf(" - %s", sym.Detail)
+		}
+
+		// Print deprecated status if true
+		if sym.Deprecated {
+			fmt.Printf(" (deprecated)")
+		}
+
+		// Print tags if any
+		if len(sym.Tags) > 0 {
+			fmt.Printf(" tags: %v", sym.Tags)
+		}
+
+		fmt.Println() // End the line
+
+		// Recursively print children with increased indentation
+		if len(sym.Children) > 0 {
+			printDocumentSymbols(sym.Children, indent+"  ")
+		}
+	}
 }

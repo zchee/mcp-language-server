@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,6 +19,9 @@ type Client struct {
 	stdin  io.WriteCloser
 	stdout *bufio.Reader
 	stderr io.ReadCloser
+
+	Ctx    context.Context
+	cancel context.CancelFunc
 
 	// Request ID counter
 	nextID atomic.Int32
@@ -56,11 +60,15 @@ func NewClient(command string, args ...string) (*Client, error) {
 		return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	client := &Client{
 		cmd:                   cmd,
 		stdin:                 stdin,
 		stdout:                bufio.NewReader(stdout),
 		stderr:                stderr,
+		Ctx:                   ctx,
+		cancel:                cancel,
 		handlers:              make(map[int32]chan *Message),
 		notificationHandlers:  make(map[string]NotificationHandler),
 		serverRequestHandlers: make(map[string]ServerRequestHandler),
@@ -101,7 +109,7 @@ func (c *Client) RegisterServerRequestHandler(method string, handler ServerReque
 	c.serverRequestHandlers[method] = handler
 }
 
-func (c *Client) Initialize() (*protocol.InitializeResult, error) {
+func (c *Client) InitializeLSPClient() (*protocol.InitializeResult, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get working directory: %w", err)
@@ -160,11 +168,11 @@ func (c *Client) Initialize() (*protocol.InitializeResult, error) {
 	}
 
 	var result protocol.InitializeResult
-	if err := c.Call("initialize", initParams, &result); err != nil {
+	if err := c.Call(c.Ctx, "initialize", initParams, &result); err != nil {
 		return nil, fmt.Errorf("initialize failed: %w", err)
 	}
 
-	if err := c.Notify("initialized", struct{}{}); err != nil {
+	if err := c.Notify(c.Ctx, "initialized", struct{}{}); err != nil {
 		return nil, fmt.Errorf("initialized notification failed: %w", err)
 	}
 

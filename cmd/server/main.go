@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
-	"github.com/isaacphi/mcp-language-server/internal/lsp/methods"
 	"github.com/isaacphi/mcp-language-server/internal/protocol"
 	"github.com/isaacphi/mcp-language-server/internal/tools"
 	"github.com/metoro-io/mcp-golang"
@@ -94,10 +93,8 @@ func main() {
 	}
 	defer client.Close()
 
-	wrapper := methods.NewMethodCaller(client)
-
 	// Initialize
-	initResult, err := client.Initialize()
+	initResult, err := client.InitializeLSPClient()
 	if err != nil {
 		log.Fatalf("Initialize failed: %v", err)
 	}
@@ -110,7 +107,7 @@ func main() {
 	}
 
 	// Send initialized notification
-	err = wrapper.Initialized(protocol.InitializedParams{})
+	err = client.Initialized(client.Ctx, protocol.InitializedParams{})
 	if err != nil {
 		log.Fatalf("Initialized notification failed: %v", err)
 	}

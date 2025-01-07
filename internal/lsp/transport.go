@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -184,7 +185,7 @@ func (c *Client) handleMessages() {
 }
 
 // Call makes a request and waits for the response
-func (c *Client) Call(method string, params interface{}, result interface{}) error {
+func (c *Client) Call(ctx context.Context, method string, params interface{}, result interface{}) error {
 	id := c.nextID.Add(1)
 
 	if debug {
@@ -244,7 +245,7 @@ func (c *Client) Call(method string, params interface{}, result interface{}) err
 }
 
 // Notify sends a notification (a request without an ID that doesn't expect a response)
-func (c *Client) Notify(method string, params interface{}) error {
+func (c *Client) Notify(ctx context.Context, method string, params interface{}) error {
 	if debug {
 		log.Printf("Sending notification: method=%s", method)
 	}

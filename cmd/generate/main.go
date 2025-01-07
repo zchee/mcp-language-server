@@ -82,6 +82,7 @@ func processinline() {
 	// write the files
 	writeprotocol()
 	writejsons()
+	writemethods(model)
 
 	checkTables()
 }
@@ -125,6 +126,7 @@ func writeprotocol() {
 func writejsons() {
 	out := new(bytes.Buffer)
 	fmt.Fprintln(out, fileHdr)
+	out.WriteString("import \"bytes\"\n")
 	out.WriteString("import \"encoding/json\"\n\n")
 	out.WriteString("import \"fmt\"\n")
 
@@ -144,6 +146,22 @@ func (e UnmarshalError) Error() string {
 		out.WriteString(jsons[k])
 	}
 	formatTo("internal/protocol/tsjson.go", out.Bytes())
+}
+
+// writemethods generates the client-side method caller code
+func writemethods(model *Model) {
+	content := generateMethods(model)
+	formatted, err := format.Source([]byte(content))
+	if err != nil {
+		failed := filepath.Join("/tmp", "methods.go.fail")
+		if err := os.WriteFile(failed, []byte(content), 0644); err != nil {
+			panic(err)
+		}
+		log.Fatalf("formatting methods.go: %v (see %s)", err, failed)
+	}
+	if err := os.WriteFile(filepath.Join(*outputdir, "internal/lsp/methods.go"), formatted, 0644); err != nil {
+		log.Fatal(err)
+	}
 }
 
 // formatTo formats the Go source and writes it to *outputdir/basename.

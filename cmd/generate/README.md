@@ -2,6 +2,8 @@
 
 A spec-compliant implementation of the Language Server Protocol types for Go. This is a fork of the LSP protocol types from [gopls](https://github.com/golang/tools/tree/master/gopls), modified to more closely match the [LSP specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/).
 
+Types have been modified to always be union types. A method generator has also been added to integrate with the internal/lsp package.
+
 ## Use
 
 From the root of the repo, run
