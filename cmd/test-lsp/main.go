@@ -111,7 +111,7 @@ func main() {
 			continue
 		}
 		fmt.Printf("Symbol: %s\n", symbol.GetName())
-		definition, err := tools.GetFullDefinition(ctx, client, symbol.GetLocation())
+		definition, _, err := tools.GetFullDefinition(ctx, client, symbol.GetLocation())
 		if err != nil {
 			fmt.Printf("Error getting definition: %v\n", err)
 			continue

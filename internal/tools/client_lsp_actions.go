@@ -82,7 +82,7 @@ func containsPosition(r protocol.Range, p protocol.Position) bool {
 }
 
 // Gets the full code block surrounding the start of the input location
-func GetFullDefinition(ctx context.Context, client *lsp.Client, loc protocol.Location) (string, error) {
+func GetFullDefinition(ctx context.Context, client *lsp.Client, loc protocol.Location) (string, protocol.Location, error) {
 	symParams := protocol.DocumentSymbolParams{
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: loc.URI,
@@ -91,12 +91,12 @@ func GetFullDefinition(ctx context.Context, client *lsp.Client, loc protocol.Loc
 
 	symResult, err := client.DocumentSymbol(ctx, symParams)
 	if err != nil {
-		return "", fmt.Errorf("failed to get document symbols: %w", err)
+		return "", protocol.Location{}, fmt.Errorf("failed to get document symbols: %w", err)
 	}
 
 	symbols, err := symResult.Results()
 	if err != nil {
-		return "", fmt.Errorf("failed to process document symbols: %w", err)
+		return "", protocol.Location{}, fmt.Errorf("failed to process document symbols: %w", err)
 	}
 
 	var symbolRange protocol.Range
@@ -131,8 +131,13 @@ func GetFullDefinition(ctx context.Context, client *lsp.Client, loc protocol.Loc
 		symbolRange = loc.Range
 	}
 
-	return ExtractTextFromLocation(protocol.Location{
+	text, err := ExtractTextFromLocation(protocol.Location{
 		URI:   loc.URI,
 		Range: symbolRange,
 	})
+	if err != nil {
+		return "", protocol.Location{}, fmt.Errorf("failed to extract text from location: %v", err)
+	}
+
+	return text, protocol.Location{URI: loc.URI, Range: symbolRange}, nil
 }
