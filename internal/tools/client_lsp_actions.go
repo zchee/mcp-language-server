@@ -10,9 +10,7 @@ import (
 	"github.com/isaacphi/mcp-language-server/internal/protocol"
 )
 
-// ExtractTextFromLocation extracts text from a file given an LSP Location
 func ExtractTextFromLocation(loc protocol.Location) (string, error) {
-	// Convert URI to filesystem path
 	path := strings.TrimPrefix(string(loc.URI), "file://")
 
 	content, err := os.ReadFile(path)
@@ -22,7 +20,6 @@ func ExtractTextFromLocation(loc protocol.Location) (string, error) {
 
 	lines := strings.Split(string(content), "\n")
 
-	// Validate line numbers
 	startLine := int(loc.Range.Start.Line)
 	endLine := int(loc.Range.End.Line)
 	if startLine < 0 || startLine >= len(lines) || endLine < 0 || endLine >= len(lines) {
@@ -71,102 +68,6 @@ func ExtractTextFromLocation(loc protocol.Location) (string, error) {
 	return result.String(), nil
 }
 
-// GetFullDefinition gets the complete definition of a symbol using LSP
-func GetFullDefinition(ctx context.Context, client lsp.Client, symbol protocol.WorkspaceSymbolResult) (string, error) {
-	// First, get the symbol's definition location
-	defParams := protocol.DefinitionParams{
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: protocol.TextDocumentIdentifier{
-				URI: symbol.GetLocation().URI,
-			},
-			Position: symbol.GetLocation().Range.Start,
-		},
-	}
-
-	var defResult protocol.Or_Result_textDocument_definition
-	err := client.Call(ctx, "textDocument/definition", defParams, &defResult)
-	if err != nil {
-		return "", fmt.Errorf("failed to get definition: %w", err)
-	}
-
-	// Handle response
-	var locations []protocol.Location
-	switch v := defResult.Value.(type) {
-	case protocol.Or_Definition:
-		if locs, ok := v.Value.([]protocol.Location); ok {
-			locations = locs
-		} else if loc, ok := v.Value.(protocol.Location); ok {
-			locations = []protocol.Location{loc}
-		} else {
-			return "", fmt.Errorf("unexpected definition value type: %T", v.Value)
-		}
-	default:
-		return "", fmt.Errorf("unexpected definition result type: %T", v)
-	}
-
-	if len(locations) == 0 {
-		return "", fmt.Errorf("no definition found for symbol %s", symbol.GetName())
-	}
-
-	// Now get the full range of the definition using documentSymbol request
-	symParams := protocol.DocumentSymbolParams{
-		TextDocument: protocol.TextDocumentIdentifier{
-			URI: locations[0].URI,
-		},
-	}
-
-	var symResult protocol.Or_Result_textDocument_documentSymbol
-	err = client.Call(ctx, "textDocument/documentSymbol", symParams, &symResult)
-	if err != nil {
-		return "", fmt.Errorf("failed to get document symbols: %w", err)
-	}
-
-	// Find the symbol at the definition location
-	var symbolRange protocol.Range
-	found := false
-
-	var searchSymbols func(symbols []protocol.DocumentSymbol) bool
-	searchSymbols = func(symbols []protocol.DocumentSymbol) bool {
-		for _, sym := range symbols {
-			if containsPosition(sym.Range, locations[0].Range.Start) {
-				symbolRange = sym.Range
-				found = true
-				return true
-			}
-			if len(sym.Children) > 0 && searchSymbols(sym.Children) {
-				return true
-			}
-		}
-		return false
-	}
-
-	switch v := symResult.Value.(type) {
-	case []protocol.DocumentSymbol:
-		searchSymbols(v)
-	case []protocol.SymbolInformation:
-		for _, sym := range v {
-			if sym.Location.URI == locations[0].URI &&
-				containsPosition(sym.Location.Range, locations[0].Range.Start) {
-				symbolRange = sym.Location.Range
-				found = true
-				break
-			}
-		}
-	}
-
-	if !found {
-		// Fall back to the original location if we can't find a better range
-		symbolRange = locations[0].Range
-	}
-
-	// Extract the text using the full symbol range
-	return ExtractTextFromLocation(protocol.Location{
-		URI:   locations[0].URI,
-		Range: symbolRange,
-	})
-}
-
-// containsPosition checks if a range contains a position
 func containsPosition(r protocol.Range, p protocol.Position) bool {
 	if r.Start.Line > p.Line || r.End.Line < p.Line {
 		return false
@@ -178,4 +79,62 @@ func containsPosition(r protocol.Range, p protocol.Position) bool {
 		return false
 	}
 	return true
+}
+
+func GetFullDefinition(ctx context.Context, client *lsp.Client, symbol protocol.WorkspaceSymbolResult) (string, error) {
+	symParams := protocol.DocumentSymbolParams{
+		TextDocument: protocol.TextDocumentIdentifier{
+			URI: symbol.GetLocation().URI,
+		},
+	}
+
+	symResult, err := client.DocumentSymbol(ctx, symParams)
+	if err != nil {
+		return "", fmt.Errorf("failed to get document symbols: %w", err)
+	}
+
+	symbols, err := symResult.Results()
+	if err != nil {
+		return "", fmt.Errorf("failed to process document symbols: %w", err)
+	}
+
+	var symbolRange protocol.Range
+	found := false
+
+	// Need to check all document symbols because WorkspaceSymbolResult's range
+	// only contains the definition but the document symbols's range has
+	// the full definition
+	var searchSymbols func(symbols []protocol.DocumentSymbolResult) bool
+	searchSymbols = func(symbols []protocol.DocumentSymbolResult) bool {
+		for _, sym := range symbols {
+			if containsPosition(sym.GetRange(), symbol.GetLocation().Range.Start) {
+				symbolRange = sym.GetRange()
+				found = true
+				return true
+			}
+			// Handle nested symbols if it's a DocumentSymbol
+			if ds, ok := sym.(*protocol.DocumentSymbol); ok && len(ds.Children) > 0 {
+				childSymbols := make([]protocol.DocumentSymbolResult, len(ds.Children))
+				for i := range ds.Children {
+					childSymbols[i] = &ds.Children[i]
+				}
+				if searchSymbols(childSymbols) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	searchSymbols(symbols)
+
+	if !found {
+		// Fall back to the original location if we can't find a better range
+		symbolRange = symbol.GetLocation().Range
+	}
+
+	return ExtractTextFromLocation(protocol.Location{
+		URI:   symbol.GetLocation().URI,
+		Range: symbolRange,
+	})
 }

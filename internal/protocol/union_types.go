@@ -43,3 +43,39 @@ func (r Or_Result_workspace_symbol) Results() ([]WorkspaceSymbolResult, error) {
 		return nil, fmt.Errorf("unknown symbol type: %T", r.Value)
 	}
 }
+
+// DocumentSymbolResult interface for unified handling of document symbol responses
+type DocumentSymbolResult interface {
+	GetRange() Range
+	GetName() string
+	isDocumentSymbol() // marker method
+}
+
+func (ds *DocumentSymbol) GetRange() Range   { return ds.Range }
+func (ds *DocumentSymbol) GetName() string   { return ds.Name }
+func (ds *DocumentSymbol) isDocumentSymbol() {}
+
+func (si *SymbolInformation) GetRange() Range { return si.Location.Range }
+
+// Note: SymbolInformation already has GetName() implemented above
+func (si *SymbolInformation) isDocumentSymbol() {}
+
+// Results converts the Value to a slice of DocumentSymbolResult
+func (r Or_Result_textDocument_documentSymbol) Results() ([]DocumentSymbolResult, error) {
+	switch v := r.Value.(type) {
+	case []DocumentSymbol:
+		results := make([]DocumentSymbolResult, len(v))
+		for i := range v {
+			results[i] = &v[i]
+		}
+		return results, nil
+	case []SymbolInformation:
+		results := make([]DocumentSymbolResult, len(v))
+		for i := range v {
+			results[i] = &v[i]
+		}
+		return results, nil
+	default:
+		return nil, fmt.Errorf("unknown document symbol type: %T", v)
+	}
+}
