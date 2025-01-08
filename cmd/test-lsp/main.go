@@ -100,23 +100,18 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to fetch symbol: %v", err)
 	}
-	switch v := symbolResult.Value.(type) {
-	case []protocol.WorkspaceSymbol:
-		fmt.Println("Got WorkspaceSymbol")
-		for _, e := range v {
-			fmt.Println(e.Name)
+	results, err := symbolResult.Results()
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, symbol := range results {
+		fmt.Printf("Symbol: %s\n", symbol.GetName())
+		text, err := tools.ReadLocation(symbol.GetLocation())
+		if err != nil {
+			fmt.Printf("Error getting definition: %v\n", err)
+			continue
 		}
-	case []protocol.SymbolInformation:
-		fmt.Println("Got SymbolInformation")
-		for _, e := range v {
-			fmt.Printf("Symbol: %s\n", e.Name)
-			text, err := tools.ReadLocation(e.Location)
-			if err != nil {
-				fmt.Printf("Error getting full definition: %v\n", err)
-				continue
-			}
-			fmt.Printf("Definition:\n%s\n\n", text)
-		}
+		fmt.Printf("Definition:\n%s\n\n", text)
 	}
 
 	// Cleanup
