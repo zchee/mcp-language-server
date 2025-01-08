@@ -93,9 +93,10 @@ func main() {
 	}
 
 	// Test workspace/symbol
+	query := "OneProspect"
 	fmt.Println("\nLooking for symbol")
 	symbolResult, err := client.Symbol(ctx, protocol.WorkspaceSymbolParams{
-		Query: "main",
+		Query: query,
 	})
 	if err != nil {
 		log.Fatalf("Failed to fetch symbol: %v", err)
@@ -104,14 +105,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	for _, symbol := range results {
+		if symbol.GetName() != query {
+			continue
+		}
 		fmt.Printf("Symbol: %s\n", symbol.GetName())
-		text, err := tools.ReadLocation(symbol.GetLocation())
+		definition, err := tools.GetFullDefinition(ctx, *client, symbol)
 		if err != nil {
 			fmt.Printf("Error getting definition: %v\n", err)
 			continue
 		}
-		fmt.Printf("Definition:\n%s\n\n", text)
+		fmt.Printf("Definition:\n%s\n\n", definition)
 	}
 
 	// Cleanup
