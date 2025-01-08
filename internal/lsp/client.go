@@ -3,13 +3,13 @@ package lsp
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/isaacphi/mcp-language-server/internal/protocol"
 )
@@ -98,20 +98,23 @@ func (c *Client) RegisterServerRequestHandler(method string, handler ServerReque
 	c.serverRequestHandlers[method] = handler
 }
 
-func (c *Client) InitializeLSPClient(ctx context.Context) (*protocol.InitializeResult, error) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get working directory: %w", err)
-	}
-
+func (c *Client) InitializeLSPClient(ctx context.Context, workspaceDir string) (*protocol.InitializeResult, error) {
 	initParams := &protocol.InitializeParams{
+		WorkspaceFoldersInitializeParams: protocol.WorkspaceFoldersInitializeParams{
+			WorkspaceFolders: []protocol.WorkspaceFolder{
+				{
+					URI:  protocol.URI("file://" + workspaceDir),
+					Name: workspaceDir,
+				},
+			},
+		},
 		XInitializeParams: protocol.XInitializeParams{
 			ProcessID: int32(os.Getpid()),
 			ClientInfo: &protocol.ClientInfo{
 				Name:    "mcp-language-server",
 				Version: "0.1.0",
 			},
-			RootURI: protocol.DocumentURI("file://" + cwd),
+			RootURI: protocol.DocumentURI("file://" + workspaceDir),
 			Capabilities: protocol.ClientCapabilities{
 				Workspace: protocol.WorkspaceClientCapabilities{
 					Configuration: true,
@@ -168,15 +171,7 @@ func (c *Client) InitializeLSPClient(ctx context.Context) (*protocol.InitializeR
 	// Register server to client request and notification handlers
 	c.RegisterServerRequestHandler("workspace/configuration", &WorkspaceConfigurationHandler{})
 	c.RegisterServerRequestHandler("client/registerCapability", &RegisterCapabilityHandler{})
-	c.RegisterNotificationHandler("window/showMessage", func(method string, params json.RawMessage) {
-		var msg struct {
-			Type    int    `json:"type"`
-			Message string `json:"message"`
-		}
-		if err := json.Unmarshal(params, &msg); err == nil {
-			fmt.Printf("Server message: %s\n", msg.Message)
-		}
-	})
+	c.RegisterNotificationHandler("window/showMessage", ServerMessageHandler)
 
 	return &result, nil
 }
@@ -190,5 +185,19 @@ func (c *Client) Close() error {
 		return fmt.Errorf("server process error: %w", err)
 	}
 
+	return nil
+}
+
+type ServerState int
+
+const (
+	StateStarting ServerState = iota
+	StateReady
+	StateError
+)
+
+func (c *Client) WaitForServerReady(ctx context.Context) error {
+	// TODO: wait for specific messages or poll workspace/symbol
+	time.Sleep(time.Second * 1)
 	return nil
 }

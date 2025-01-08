@@ -96,7 +96,7 @@ func main() {
 
 	// Initialize
 	ctx := context.Background()
-	initResult, err := client.InitializeLSPClient(ctx)
+	initResult, err := client.InitializeLSPClient(ctx, workspaceDir)
 	if err != nil {
 		log.Fatalf("Initialize failed: %v", err)
 	}
