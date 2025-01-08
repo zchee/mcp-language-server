@@ -44,7 +44,6 @@ func (r Or_Result_workspace_symbol) Results() ([]WorkspaceSymbolResult, error) {
 	}
 }
 
-// DocumentSymbolResult interface for unified handling of document symbol responses
 type DocumentSymbolResult interface {
 	GetRange() Range
 	GetName() string

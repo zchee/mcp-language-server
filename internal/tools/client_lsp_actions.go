@@ -81,10 +81,11 @@ func containsPosition(r protocol.Range, p protocol.Position) bool {
 	return true
 }
 
-func GetFullDefinition(ctx context.Context, client *lsp.Client, symbol protocol.WorkspaceSymbolResult) (string, error) {
+// Gets the full code block surrounding the start of the input location
+func GetFullDefinition(ctx context.Context, client *lsp.Client, loc protocol.Location) (string, error) {
 	symParams := protocol.DocumentSymbolParams{
 		TextDocument: protocol.TextDocumentIdentifier{
-			URI: symbol.GetLocation().URI,
+			URI: loc.URI,
 		},
 	}
 
@@ -101,13 +102,10 @@ func GetFullDefinition(ctx context.Context, client *lsp.Client, symbol protocol.
 	var symbolRange protocol.Range
 	found := false
 
-	// Need to check all document symbols because WorkspaceSymbolResult's range
-	// only contains the definition but the document symbols's range has
-	// the full definition
 	var searchSymbols func(symbols []protocol.DocumentSymbolResult) bool
 	searchSymbols = func(symbols []protocol.DocumentSymbolResult) bool {
 		for _, sym := range symbols {
-			if containsPosition(sym.GetRange(), symbol.GetLocation().Range.Start) {
+			if containsPosition(sym.GetRange(), loc.Range.Start) {
 				symbolRange = sym.GetRange()
 				found = true
 				return true
@@ -130,11 +128,11 @@ func GetFullDefinition(ctx context.Context, client *lsp.Client, symbol protocol.
 
 	if !found {
 		// Fall back to the original location if we can't find a better range
-		symbolRange = symbol.GetLocation().Range
+		symbolRange = loc.Range
 	}
 
 	return ExtractTextFromLocation(protocol.Location{
-		URI:   symbol.GetLocation().URI,
+		URI:   loc.URI,
 		Range: symbolRange,
 	})
 }
