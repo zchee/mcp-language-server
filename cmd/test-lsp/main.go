@@ -95,7 +95,7 @@ func main() {
 	// Test workspace/symbol
 	fmt.Println("\nLooking for symbol")
 	symbolResult, err := client.Symbol(ctx, protocol.WorkspaceSymbolParams{
-		Query: "find_references",
+		Query: "main",
 	})
 	if err != nil {
 		log.Fatalf("Failed to fetch symbol: %v", err)
@@ -110,7 +110,7 @@ func main() {
 		fmt.Println("Got SymbolInformation")
 		for _, e := range v {
 			fmt.Printf("Symbol: %s\n", e.Name)
-			text, err := tools.GetFullDefinition(ctx, client, e.Location)
+			text, err := tools.ReadLocation(e.Location)
 			if err != nil {
 				fmt.Printf("Error getting full definition: %v\n", err)
 				continue
