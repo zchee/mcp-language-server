@@ -52,13 +52,11 @@ func main() {
 		workspaceDir  string
 		lspCommandStr string
 		filePath      string
-		debug         bool
 	)
 
 	flag.StringVar(&workspaceDir, "workspace", "", "Path to workspace directory (optional)")
 	flag.StringVar(&lspCommandStr, "lsp", "gopls", "LSP command to run (e.g., 'gopls -remote=auto')")
 	flag.StringVar(&filePath, "file", "", "File to analyze (optional)")
-	flag.BoolVar(&debug, "debug", false, "Enable debug logging")
 	flag.Parse()
 
 	if filePath == "" {
@@ -133,9 +131,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Initialize failed: %v", err)
 	}
-	if debug {
-		fmt.Printf("Server capabilities: %+v\n\n", initResult.Capabilities)
-	}
+	fmt.Printf("Server capabilities: %+v\n\n", initResult.Capabilities)
 
 	if initResult.Capabilities.DocumentSymbolProvider == nil {
 		log.Fatal("Server does not support document symbols")
@@ -193,10 +189,8 @@ func main() {
 		printDocumentSymbols(v, "  ")
 	default:
 		fmt.Printf("Unexpected symbol response type: %T\n", symbols.Value)
-		if debug {
-			jsonBytes, _ := json.MarshalIndent(symbols, "", "  ")
-			fmt.Printf("Raw response:\n%s\n", string(jsonBytes))
-		}
+		jsonBytes, _ := json.MarshalIndent(symbols, "", "  ")
+		fmt.Printf("Raw response:\n%s\n", string(jsonBytes))
 	}
 
 	// Test textDocument/didClose

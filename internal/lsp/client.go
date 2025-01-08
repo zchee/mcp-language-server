@@ -34,9 +34,6 @@ type Client struct {
 	// Notification handlers
 	notificationHandlers map[string]NotificationHandler
 	notificationMu       sync.RWMutex
-
-	// Debug mode
-	debug bool
 }
 
 func NewClient(command string, args ...string) (*Client, error) {
@@ -65,7 +62,6 @@ func NewClient(command string, args ...string) (*Client, error) {
 		handlers:              make(map[int32]chan *Message),
 		notificationHandlers:  make(map[string]NotificationHandler),
 		serverRequestHandlers: make(map[string]ServerRequestHandler),
-		debug:                 os.Getenv("LSP_DEBUG") != "",
 	}
 
 	// Start the LSP server process
