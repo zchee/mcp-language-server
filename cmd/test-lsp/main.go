@@ -129,7 +129,7 @@ func main() {
 
 	// Initialize
 	ctx := context.Background()
-	initResult, err := client.InitializeLSPClient()
+	initResult, err := client.InitializeLSPClient(ctx)
 	if err != nil {
 		log.Fatalf("Initialize failed: %v", err)
 	}

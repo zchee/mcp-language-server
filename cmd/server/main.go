@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"os"
@@ -94,7 +95,8 @@ func main() {
 	defer client.Close()
 
 	// Initialize
-	initResult, err := client.InitializeLSPClient()
+	ctx := context.Background()
+	initResult, err := client.InitializeLSPClient(ctx)
 	if err != nil {
 		log.Fatalf("Initialize failed: %v", err)
 	}
@@ -102,12 +104,8 @@ func main() {
 		log.Printf("Server capabilities: %+v\n\n", initResult.Capabilities)
 	}
 
-	if initResult.Capabilities.DocumentSymbolProvider == nil {
-		log.Fatal("Server does not support document symbols")
-	}
-
 	// Send initialized notification
-	err = client.Initialized(client.Ctx, protocol.InitializedParams{})
+	err = client.Initialized(ctx, protocol.InitializedParams{})
 	if err != nil {
 		log.Fatalf("Initialized notification failed: %v", err)
 	}
