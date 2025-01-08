@@ -12,6 +12,7 @@ import (
 
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
 	"github.com/isaacphi/mcp-language-server/internal/protocol"
+	"github.com/isaacphi/mcp-language-server/internal/tools"
 )
 
 type LSPCommand struct {
@@ -94,7 +95,7 @@ func main() {
 	// Test workspace/symbol
 	fmt.Println("\nLooking for symbol")
 	symbolResult, err := client.Symbol(ctx, protocol.WorkspaceSymbolParams{
-		Query: "main",
+		Query: "find_references",
 	})
 	if err != nil {
 		log.Fatalf("Failed to fetch symbol: %v", err)
@@ -108,7 +109,13 @@ func main() {
 	case []protocol.SymbolInformation:
 		fmt.Println("Got SymbolInformation")
 		for _, e := range v {
-			fmt.Println(e.Name)
+			fmt.Printf("Symbol: %s\n", e.Name)
+			text, err := tools.GetFullDefinition(ctx, client, e.Location)
+			if err != nil {
+				fmt.Printf("Error getting full definition: %v\n", err)
+				continue
+			}
+			fmt.Printf("Definition:\n%s\n\n", text)
 		}
 	}
 
