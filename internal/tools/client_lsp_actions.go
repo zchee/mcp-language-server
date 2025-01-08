@@ -3,7 +3,6 @@ package tools
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -11,11 +10,10 @@ import (
 	"github.com/isaacphi/mcp-language-server/internal/protocol"
 )
 
-func ReadLocation(loc protocol.Location) (string, error) {
-	// Convert URI to filesystem path by removing the file:// prefix
+// ExtractTextFromLocation extracts text from a file given an LSP Location
+func ExtractTextFromLocation(loc protocol.Location) (string, error) {
+	// Convert URI to filesystem path
 	path := strings.TrimPrefix(string(loc.URI), "file://")
-
-	fmt.Println("file:", loc.URI)
 
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -28,57 +26,55 @@ func ReadLocation(loc protocol.Location) (string, error) {
 	startLine := int(loc.Range.Start.Line)
 	endLine := int(loc.Range.End.Line)
 	if startLine < 0 || startLine >= len(lines) || endLine < 0 || endLine >= len(lines) {
-		return "", fmt.Errorf("invalid Location: %v", loc)
+		return "", fmt.Errorf("invalid Location range: %v", loc.Range)
 	}
 
-	// If it's a single line
+	// Handle single-line case
 	if startLine == endLine {
 		line := lines[startLine]
 		startChar := int(loc.Range.Start.Character)
 		endChar := int(loc.Range.End.Character)
 
 		if startChar < 0 || startChar > len(line) || endChar < 0 || endChar > len(line) {
-			return "", fmt.Errorf("invalid Location: %v", loc)
+			return "", fmt.Errorf("invalid character range: %v", loc.Range)
 		}
 
 		return line[startChar:endChar], nil
 	}
 
-	// Handle multi-line selection
+	// Handle multi-line case
 	var result strings.Builder
 
-	// First line (from start character to end of line)
+	// First line
 	firstLine := lines[startLine]
 	startChar := int(loc.Range.Start.Character)
 	if startChar < 0 || startChar > len(firstLine) {
-		return "", fmt.Errorf("invalid Location: %v", loc)
+		return "", fmt.Errorf("invalid start character: %v", loc.Range.Start)
 	}
 	result.WriteString(firstLine[startChar:])
 
-	// Middle lines (complete lines)
+	// Middle lines
 	for i := startLine + 1; i < endLine; i++ {
 		result.WriteString("\n")
 		result.WriteString(lines[i])
 	}
 
-	// Last line (from start of line to end character)
-	if startLine != endLine {
-		lastLine := lines[endLine]
-		endChar := int(loc.Range.End.Character)
-		if endChar < 0 || endChar > len(lastLine) {
-			return "", fmt.Errorf("invalid Location: %v", loc)
-		}
-		result.WriteString("\n")
-		result.WriteString(lastLine[:endChar])
+	// Last line
+	lastLine := lines[endLine]
+	endChar := int(loc.Range.End.Character)
+	if endChar < 0 || endChar > len(lastLine) {
+		return "", fmt.Errorf("invalid end character: %v", loc.Range.End)
 	}
+	result.WriteString("\n")
+	result.WriteString(lastLine[:endChar])
 
 	return result.String(), nil
 }
 
 // GetFullDefinition gets the complete definition of a symbol using LSP
 func GetFullDefinition(ctx context.Context, client lsp.Client, symbol protocol.WorkspaceSymbolResult) (string, error) {
-	// Convert symbol location to TextDocumentPositionParams
-	params := protocol.DefinitionParams{
+	// First, get the symbol's definition location
+	defParams := protocol.DefinitionParams{
 		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
 			TextDocument: protocol.TextDocumentIdentifier{
 				URI: symbol.GetLocation().URI,
@@ -87,9 +83,8 @@ func GetFullDefinition(ctx context.Context, client lsp.Client, symbol protocol.W
 		},
 	}
 
-	// Get definition location
 	var defResult protocol.Or_Result_textDocument_definition
-	err := client.Call(ctx, "textDocument/definition", params, &defResult)
+	err := client.Call(ctx, "textDocument/definition", defParams, &defResult)
 	if err != nil {
 		return "", fmt.Errorf("failed to get definition: %w", err)
 	}
@@ -103,139 +98,84 @@ func GetFullDefinition(ctx context.Context, client lsp.Client, symbol protocol.W
 		} else if loc, ok := v.Value.(protocol.Location); ok {
 			locations = []protocol.Location{loc}
 		} else {
-			return "", fmt.Errorf("unexpected Or_Definition value type: %T", v.Value)
+			return "", fmt.Errorf("unexpected definition value type: %T", v.Value)
 		}
 	default:
 		return "", fmt.Errorf("unexpected definition result type: %T", v)
 	}
 
 	if len(locations) == 0 {
-		return "", fmt.Errorf("no definition locations found")
-	}
-
-	if len(locations) == 0 {
 		return "", fmt.Errorf("no definition found for symbol %s", symbol.GetName())
 	}
 
-	// Get the first location (most relevant)
-	loc := locations[0]
-
-	// Read the file content
-	content, err := ReadFileFromURI(string(loc.URI))
-	if err != nil {
-		return "", fmt.Errorf("failed to read file: %w", err)
+	// Now get the full range of the definition using documentSymbol request
+	symParams := protocol.DocumentSymbolParams{
+		TextDocument: protocol.TextDocumentIdentifier{
+			URI: locations[0].URI,
+		},
 	}
 
-	// Extract the definition range
-	fullRange, err := ExpandDefinitionRange(content, loc.Range)
+	var symResult protocol.Or_Result_textDocument_documentSymbol
+	err = client.Call(ctx, "textDocument/documentSymbol", symParams, &symResult)
 	if err != nil {
-		return "", fmt.Errorf("failed to expand definition range: %w", err)
+		return "", fmt.Errorf("failed to get document symbols: %w", err)
 	}
 
-	// Extract the text from the expanded range
-	definition := ExtractRangeText(content, fullRange)
-	return definition, nil
-}
+	// Find the symbol at the definition location
+	var symbolRange protocol.Range
+	found := false
 
-// ExpandDefinitionRange expands the initial range to include the full definition
-func ExpandDefinitionRange(content string, initial protocol.Range) (protocol.Range, error) {
-	lines := strings.Split(content, "\n")
+	var searchSymbols func(symbols []protocol.DocumentSymbol) bool
+	searchSymbols = func(symbols []protocol.DocumentSymbol) bool {
+		for _, sym := range symbols {
+			if containsPosition(sym.Range, locations[0].Range.Start) {
+				symbolRange = sym.Range
+				found = true
+				return true
+			}
+			if len(sym.Children) > 0 && searchSymbols(sym.Children) {
+				return true
+			}
+		}
+		return false
+	}
 
-	// Start with the initial range
-	expanded := initial
-
-	// Scan forward to find the end of the definition
-	line := initial.Start.Line
-	indent := getIndentation(lines[line])
-	for int(line) < len(lines) {
-		// Break if we hit an empty line or a line with less indentation
-		if line > initial.Start.Line {
-			currIndent := getIndentation(lines[line])
-			if strings.TrimSpace(lines[line]) == "" || currIndent < indent {
+	switch v := symResult.Value.(type) {
+	case []protocol.DocumentSymbol:
+		searchSymbols(v)
+	case []protocol.SymbolInformation:
+		for _, sym := range v {
+			if sym.Location.URI == locations[0].URI &&
+				containsPosition(sym.Location.Range, locations[0].Range.Start) {
+				symbolRange = sym.Location.Range
+				found = true
 				break
 			}
 		}
-		expanded.End.Line = line + 1
-		expanded.End.Character = uint32(len(lines[line]))
-		line++
 	}
 
-	return expanded, nil
+	if !found {
+		// Fall back to the original location if we can't find a better range
+		symbolRange = locations[0].Range
+	}
+
+	// Extract the text using the full symbol range
+	return ExtractTextFromLocation(protocol.Location{
+		URI:   locations[0].URI,
+		Range: symbolRange,
+	})
 }
 
-// getIndentation returns the number of leading spaces in a string
-func getIndentation(s string) int {
-	return len(s) - len(strings.TrimLeft(s, " \t"))
-}
-
-// ReadFileFromURI reads a file from a LSP URI (file://)
-func ReadFileFromURI(uri string) (string, error) {
-	// Remove the file:// prefix
-	path := strings.TrimPrefix(uri, "file://")
-
-	// Read the file
-	content, err := ioutil.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("failed to read file %s: %w", path, err)
+// containsPosition checks if a range contains a position
+func containsPosition(r protocol.Range, p protocol.Position) bool {
+	if r.Start.Line > p.Line || r.End.Line < p.Line {
+		return false
 	}
-
-	return string(content), nil
-}
-
-func ExtractRangeText(content string, rng protocol.Range) string {
-	lines := strings.Split(content, "\n")
-	if len(lines) == 0 {
-		return ""
+	if r.Start.Line == p.Line && r.Start.Character > p.Character {
+		return false
 	}
-
-	// Validate range bounds
-	startLine := int(rng.Start.Line)
-	endLine := int(rng.End.Line)
-	if startLine >= len(lines) || startLine < 0 {
-		return ""
+	if r.End.Line == p.Line && r.End.Character < p.Character {
+		return false
 	}
-	if endLine >= len(lines) {
-		endLine = len(lines) - 1
-	}
-
-	// Handle single-line case
-	if startLine == endLine {
-		line := lines[startLine]
-		startChar := int(rng.Start.Character)
-		endChar := int(rng.End.Character)
-		if startChar >= len(line) {
-			return ""
-		}
-		if endChar > len(line) {
-			endChar = len(line)
-		}
-		return line[startChar:endChar]
-	}
-
-	// Handle multi-line case
-	var result []string
-
-	// First line
-	firstLine := lines[startLine]
-	startChar := int(rng.Start.Character)
-	if startChar < len(firstLine) {
-		result = append(result, firstLine[startChar:])
-	}
-
-	// Middle lines
-	for i := startLine + 1; i < endLine; i++ {
-		result = append(result, lines[i])
-	}
-
-	// Last line
-	if endLine < len(lines) {
-		lastLine := lines[endLine]
-		endChar := int(rng.End.Character)
-		if endChar > len(lastLine) {
-			endChar = len(lastLine)
-		}
-		result = append(result, lastLine[:endChar])
-	}
-
-	return strings.Join(result, "\n")
+	return true
 }
