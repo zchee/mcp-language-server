@@ -10,7 +10,7 @@ import (
 	"github.com/isaacphi/mcp-language-server/internal/protocol"
 )
 
-func GetDefinition(ctx context.Context, client *lsp.Client, symbolName string) (string, error) {
+func ReadDefinition(ctx context.Context, client *lsp.Client, symbolName string) (string, error) {
 	symbolResult, err := client.Symbol(ctx, protocol.WorkspaceSymbolParams{
 		Query: symbolName,
 	})
@@ -25,8 +25,21 @@ func GetDefinition(ctx context.Context, client *lsp.Client, symbolName string) (
 
 	var definitions []string
 	for _, symbol := range results {
-		if symbol.GetName() != symbolName {
-			continue
+
+		// Skip symbols that we are not looking for. workspace/symbol may return
+		// a large number of fuzzy matches. SymbolInformation results have richer data
+		switch v := symbol.(type) {
+		case *protocol.SymbolInformation:
+			if v.Kind == protocol.Method && strings.HasSuffix(symbol.GetName(), symbolName) {
+				break
+			}
+			if symbol.GetName() != symbolName {
+				continue
+			}
+		default:
+			if symbol.GetName() != symbolName {
+				continue
+			}
 		}
 
 		log.Printf("Symbol: %s\n", symbol.GetName())
@@ -40,7 +53,7 @@ func GetDefinition(ctx context.Context, client *lsp.Client, symbolName string) (
 				"Start Position: Line %d, Column %d\n"+
 				"End Position: Line %d, Column %d\n"+
 				"%s\n",
-			symbolName,
+			symbol.GetName(),
 			strings.TrimPrefix(string(loc.URI), "file://"),
 			loc.Range.Start.Line+1,
 			loc.Range.Start.Character+1,
