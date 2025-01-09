@@ -78,3 +78,29 @@ func (r Or_Result_textDocument_documentSymbol) Results() ([]DocumentSymbolResult
 		return nil, fmt.Errorf("unknown document symbol type: %T", v)
 	}
 }
+
+// TextEditResult is an interface for types that can be used as text edits
+type TextEditResult interface {
+	GetRange() Range
+	GetNewText() string
+	isTextEdit() // marker method
+}
+
+func (te *TextEdit) GetRange() Range    { return te.Range }
+func (te *TextEdit) GetNewText() string { return te.NewText }
+func (te *TextEdit) isTextEdit()        {}
+
+// Convert Or_TextDocumentEdit_edits_Elem to TextEdit
+func (e Or_TextDocumentEdit_edits_Elem) AsTextEdit() (TextEdit, error) {
+	switch v := e.Value.(type) {
+	case TextEdit:
+		return v, nil
+	case AnnotatedTextEdit:
+		return TextEdit{
+			Range:   v.Range,
+			NewText: v.NewText,
+		}, nil
+	default:
+		return TextEdit{}, fmt.Errorf("unknown text edit type: %T", e.Value)
+	}
+}
