@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
-	"github.com/isaacphi/mcp-language-server/internal/protocol"
 	"github.com/isaacphi/mcp-language-server/internal/tools"
 )
 
@@ -80,23 +79,18 @@ func main() {
 	}
 	fmt.Printf("Server capabilities: %+v\n\n", initResult.Capabilities)
 
-	err = client.Initialized(ctx, protocol.InitializedParams{})
-	if err != nil {
-		log.Fatalf("Initialized notification failed: %v", err)
-	}
-
 	if err := client.WaitForServerReady(ctx); err != nil {
 		log.Fatalf("Server failed to become ready: %v", err)
 	}
 
 	///////////////////////////////////////////////////////////////////////////
 	// Test Tools
-	// response, err := tools.ReadDefinition(ctx, client, cfg.keyword, true)
-	// if err != nil {
-	// 	log.Fatalf("ReadDefinition failed: %v", err)
-	// }
-	// fmt.Println(response)
-	//
+	response, err := tools.ReadDefinition(ctx, client, cfg.keyword, true)
+	if err != nil {
+		log.Fatalf("ReadDefinition failed: %v", err)
+	}
+	fmt.Println(response)
+
 	// edits := []tools.TextEdit{
 	// 	tools.TextEdit{
 	// 		Type:      tools.Insert,
@@ -117,11 +111,11 @@ func main() {
 	// }
 	// fmt.Println(response)
 
-	response, err := tools.GetDiagnosticsForFile(ctx, client, cfg.keyword, true, true)
-	if err != nil {
-		log.Fatalf("GetDiagnostics failed: %v", err)
-	}
-	fmt.Println(response)
+	// response, err = tools.GetDiagnosticsForFile(ctx, client, cfg.keyword, true, true)
+	// if err != nil {
+	// 	log.Fatalf("GetDiagnostics failed: %v", err)
+	// }
+	// fmt.Println(response)
 
 	time.Sleep(time.Second * 1)
 

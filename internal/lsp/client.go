@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -128,7 +130,8 @@ func (c *Client) InitializeLSPClient(ctx context.Context, workspaceDir string) (
 				Name:    "mcp-language-server",
 				Version: "0.1.0",
 			},
-			RootURI: protocol.DocumentUri("file://" + workspaceDir),
+			RootPath: workspaceDir,
+			RootURI:  protocol.DocumentUri("file://" + workspaceDir),
 			Capabilities: protocol.ClientCapabilities{
 				Workspace: protocol.WorkspaceClientCapabilities{
 					Configuration: true,
@@ -203,6 +206,22 @@ func (c *Client) InitializeLSPClient(ctx context.Context, workspaceDir string) (
 	c.RegisterNotificationHandler("window/showMessage", HandleServerMessage)
 	c.RegisterNotificationHandler("textDocument/publishDiagnostics",
 		func(params json.RawMessage) { HandleDiagnostics(c, params) })
+
+	// Notify the LSP server
+	err := c.Initialized(ctx, protocol.InitializedParams{})
+	if err != nil {
+		return nil, fmt.Errorf("initialization failed: %w", err)
+	}
+
+	// LSP sepecific Initialization
+	path := strings.ToLower(c.Cmd.Path)
+	switch {
+	case strings.Contains(path, "typescript-language-server"):
+		err := initializeTypescriptLanguageServer(ctx, c, workspaceDir)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return &result, nil
 }
@@ -343,10 +362,13 @@ func (c *Client) CloseFile(ctx context.Context, filepath string) error {
 			URI: protocol.DocumentUri(uri),
 		},
 	}
+	log.Println("Closing", params.TextDocument.URI.Dir())
+	// TODO: properly close files. typescript-language-server currently
+	// doesn't work properly whith my file watcher implementation
 
-	if err := c.Notify(ctx, "textDocument/didClose", params); err != nil {
-		return err
-	}
+	// if err := c.Notify(ctx, "textDocument/didClose", params); err != nil {
+	// 	return err
+	// }
 
 	c.openFilesMu.Lock()
 	delete(c.openFiles, uri)

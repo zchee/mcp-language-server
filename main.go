@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
-	"github.com/isaacphi/mcp-language-server/internal/protocol"
 	"github.com/isaacphi/mcp-language-server/internal/watcher"
 	"github.com/metoro-io/mcp-golang"
 	"github.com/metoro-io/mcp-golang/transport/stdio"
@@ -102,11 +101,6 @@ func (s *server) initializeLSP() error {
 		log.Printf("Server capabilities: %+v\n\n", initResult.Capabilities)
 	}
 
-	err = client.Initialized(s.ctx, protocol.InitializedParams{})
-	if err != nil {
-		return fmt.Errorf("initialized notification failed: %v", err)
-	}
-
 	go s.workspaceWatcher.WatchWorkspace(s.ctx, s.config.workspaceDir)
 	return client.WaitForServerReady(s.ctx)
 }
@@ -144,6 +138,7 @@ func main() {
 	parentDeath := make(chan struct{})
 
 	// Monitor parent process termination
+	// Claude desktop does not properly kill child processes for MCP servers
 	go func() {
 		ppid := os.Getppid()
 		if debug {
