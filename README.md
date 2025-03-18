@@ -111,7 +111,7 @@ go mod download
 Build:
 
 ```bash
-go build -o server
+go build
 ```
 
 Configure your Claude Desktop (or similar) to use the local binary:
@@ -120,7 +120,7 @@ Configure your Claude Desktop (or similar) to use the local binary:
 {
   "mcpServers": {
     "language-server": {
-      "command": "/full/path/to/your/clone/mcp-language-server/server",
+      "command": "/full/path/to/your/clone/mcp-language-server/mcp-language-server",
       "args": [
         "--workspace",
         "/path/to/workspace",
