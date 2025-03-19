@@ -62,4 +62,3 @@ func findAllTypeScriptFiles(rootDir string) ([]string, error) {
 
 	return tsFiles, nil
 }
-

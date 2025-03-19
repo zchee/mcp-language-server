@@ -139,7 +139,8 @@ func (c *Client) InitializeLSPClient(ctx context.Context, workspaceDir string) (
 						DynamicRegistration: true,
 					},
 					DidChangeWatchedFiles: protocol.DidChangeWatchedFilesClientCapabilities{
-						DynamicRegistration: true,
+						DynamicRegistration:    true,
+						RelativePatternSupport: true,
 					},
 				},
 				TextDocument: protocol.TextDocumentClientCapabilities{
@@ -363,12 +364,9 @@ func (c *Client) CloseFile(ctx context.Context, filepath string) error {
 		},
 	}
 	log.Println("Closing", params.TextDocument.URI.Dir())
-	// TODO: properly close files. typescript-language-server currently
-	// doesn't work properly whith my file watcher implementation
-
-	// if err := c.Notify(ctx, "textDocument/didClose", params); err != nil {
-	// 	return err
-	// }
+	if err := c.Notify(ctx, "textDocument/didClose", params); err != nil {
+		return err
+	}
 
 	c.openFilesMu.Lock()
 	delete(c.openFiles, uri)

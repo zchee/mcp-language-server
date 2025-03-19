@@ -15,6 +15,35 @@ func HandleWorkspaceConfiguration(params json.RawMessage) (interface{}, error) {
 }
 
 func HandleRegisterCapability(params json.RawMessage) (interface{}, error) {
+	var registerParams protocol.RegistrationParams
+	if err := json.Unmarshal(params, &registerParams); err != nil {
+		log.Printf("Error unmarshaling registration params: %v", err)
+		return nil, err
+	}
+
+	for _, reg := range registerParams.Registrations {
+		log.Printf("Registration received for method: %s, id: %s", reg.Method, reg.ID)
+
+		switch reg.Method {
+		case "workspace/didChangeWatchedFiles":
+			// Parse the registration options
+			optionsJSON, err := json.Marshal(reg.RegisterOptions)
+			if err != nil {
+				log.Printf("Error marshaling registration options: %v", err)
+				continue
+			}
+
+			var options protocol.DidChangeWatchedFilesRegistrationOptions
+			if err := json.Unmarshal(optionsJSON, &options); err != nil {
+				log.Printf("Error unmarshaling registration options: %v", err)
+				continue
+			}
+
+			// Store the file watchers registrations
+			notifyFileWatchRegistration(reg.ID, options.Watchers)
+		}
+	}
+
 	return nil, nil
 }
 
@@ -31,6 +60,24 @@ func HandleApplyEdit(params json.RawMessage) (interface{}, error) {
 	}
 
 	return protocol.ApplyWorkspaceEditResult{Applied: true}, nil
+}
+
+// FileWatchRegistrationHandler is a function that will be called when file watch registrations are received
+type FileWatchRegistrationHandler func(id string, watchers []protocol.FileSystemWatcher)
+
+// fileWatchHandler holds the current handler for file watch registrations
+var fileWatchHandler FileWatchRegistrationHandler
+
+// RegisterFileWatchHandler sets the handler for file watch registrations
+func RegisterFileWatchHandler(handler FileWatchRegistrationHandler) {
+	fileWatchHandler = handler
+}
+
+// notifyFileWatchRegistration notifies the handler about new file watch registrations
+func notifyFileWatchRegistration(id string, watchers []protocol.FileSystemWatcher) {
+	if fileWatchHandler != nil {
+		fileWatchHandler(id, watchers)
+	}
 }
 
 // Notifications
