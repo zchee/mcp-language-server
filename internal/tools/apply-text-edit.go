@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"sort"
 	"strings"
@@ -34,11 +33,6 @@ func ApplyTextEdits(ctx context.Context, client *lsp.Client, filePath string, ed
 	if err != nil {
 		return "", fmt.Errorf("could not open file: %v", err)
 	}
-	defer func() {
-		if err := client.CloseFile(ctx, filePath); err != nil {
-			log.Printf("Could not close file: %v", err)
-		}
-	}()
 
 	// Sort edits by line number in descending order to process from bottom to top
 	// This way line numbers don't shift under us as we make edits

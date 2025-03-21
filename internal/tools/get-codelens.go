@@ -3,7 +3,6 @@ package tools
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -17,11 +16,7 @@ func GetCodeLens(ctx context.Context, client *lsp.Client, filePath string) (stri
 	if err != nil {
 		return "", fmt.Errorf("could not open file: %v", err)
 	}
-	defer func() {
-		if err := client.CloseFile(ctx, filePath); err != nil {
-			log.Printf("Could not close file: %v", err)
-		}
-	}()
+	// TODO: find a more appropriate way to wait
 	time.Sleep(time.Second)
 
 	// Create document identifier

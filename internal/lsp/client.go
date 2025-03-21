@@ -218,17 +218,24 @@ func (c *Client) InitializeLSPClient(ctx context.Context, workspaceDir string) (
 	path := strings.ToLower(c.Cmd.Path)
 	switch {
 	case strings.Contains(path, "typescript-language-server"):
-		err := initializeTypescriptLanguageServer(ctx, c, workspaceDir)
-		if err != nil {
-			return nil, err
-		}
+		// err := initializeTypescriptLanguageServer(ctx, c, workspaceDir)
+		// if err != nil {
+		// 	return nil, err
+		// }
 	}
 
 	return &result, nil
 }
 
 func (c *Client) Close() error {
-	// Close stdin first to signal the server
+	// Try to close all open files first
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Attempt to close files but continue shutdown regardless
+	c.CloseAllFiles(ctx)
+
+	// Close stdin to signal the server
 	if err := c.stdin.Close(); err != nil {
 		return fmt.Errorf("failed to close stdin: %w", err)
 	}
@@ -281,6 +288,7 @@ func (c *Client) OpenFile(ctx context.Context, filepath string) error {
 	}
 	c.openFilesMu.Unlock()
 
+	// Skip files that do not exist or cannot be read
 	content, err := os.ReadFile(filepath)
 	if err != nil {
 		return fmt.Errorf("error reading file: %w", err)
@@ -305,6 +313,10 @@ func (c *Client) OpenFile(ctx context.Context, filepath string) error {
 		URI:     protocol.DocumentUri(uri),
 	}
 	c.openFilesMu.Unlock()
+
+	if debug {
+		log.Printf("Opened file: %s", filepath)
+	}
 
 	return nil
 }
@@ -381,6 +393,32 @@ func (c *Client) IsFileOpen(filepath string) bool {
 	defer c.openFilesMu.RUnlock()
 	_, exists := c.openFiles[uri]
 	return exists
+}
+
+// CloseAllFiles closes all currently open files
+func (c *Client) CloseAllFiles(ctx context.Context) {
+	c.openFilesMu.Lock()
+	filesToClose := make([]string, 0, len(c.openFiles))
+
+	// First collect all URIs that need to be closed
+	for uri := range c.openFiles {
+		// Convert URI back to file path by trimming "file://" prefix
+		filePath := strings.TrimPrefix(uri, "file://")
+		filesToClose = append(filesToClose, filePath)
+	}
+	c.openFilesMu.Unlock()
+
+	// Then close them all
+	for _, filePath := range filesToClose {
+		err := c.CloseFile(ctx, filePath)
+		if err != nil && debug {
+			log.Printf("Error closing file %s: %v", filePath, err)
+		}
+	}
+
+	if debug {
+		log.Printf("Closed %d files", len(filesToClose))
+	}
 }
 
 func (c *Client) GetFileDiagnostics(uri protocol.DocumentUri) []protocol.Diagnostic {

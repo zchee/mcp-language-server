@@ -18,11 +18,6 @@ func GetDiagnosticsForFile(ctx context.Context, client *lsp.Client, filePath str
 	if err != nil {
 		return "", fmt.Errorf("could not open file: %v", err)
 	}
-	defer func() {
-		if err := client.CloseFile(ctx, filePath); err != nil {
-			log.Printf("Could not close file: %v", err)
-		}
-	}()
 
 	// Wait for diagnostics
 	// TODO: wait for notification

@@ -194,6 +194,9 @@ func cleanup(s *server, done chan struct{}) {
 	defer cancel()
 
 	if s.lspClient != nil {
+		log.Printf("Closing open files")
+		s.lspClient.CloseAllFiles(ctx)
+
 		log.Printf("Sending shutdown request")
 		if err := s.lspClient.Shutdown(ctx); err != nil {
 			log.Printf("Shutdown request failed: %v", err)

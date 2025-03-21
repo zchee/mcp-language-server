@@ -5,7 +5,6 @@ go 1.24.0
 require (
 	github.com/fsnotify/fsnotify v1.8.0
 	github.com/metoro-io/mcp-golang v0.6.0
-	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
 	golang.org/x/text v0.21.0
 )
 
@@ -16,6 +15,7 @@ require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/invopop/jsonschema v0.13.0 // indirect
+	github.com/kisielk/errcheck v1.9.0 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
@@ -35,6 +35,7 @@ require (
 )
 
 tool (
+	github.com/kisielk/errcheck
 	golang.org/x/vuln/cmd/govulncheck
 	honnef.co/go/tools/cmd/staticcheck
 )

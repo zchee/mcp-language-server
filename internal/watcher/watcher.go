@@ -42,7 +42,7 @@ func NewWorkspaceWatcher(client *lsp.Client) *WorkspaceWatcher {
 }
 
 // AddRegistrations adds file watchers to track
-func (w *WorkspaceWatcher) AddRegistrations(id string, watchers []protocol.FileSystemWatcher) {
+func (w *WorkspaceWatcher) AddRegistrations(ctx context.Context, id string, watchers []protocol.FileSystemWatcher) {
 	w.registrationMu.Lock()
 	defer w.registrationMu.Unlock()
 
@@ -100,6 +100,50 @@ func (w *WorkspaceWatcher) AddRegistrations(id string, watchers []protocol.FileS
 			}
 		}
 	}
+
+	// Find and open all existing files that match the newly registered patterns
+	// TODO: not all language servers require this, but typescript does. Make this configurable
+	go func() {
+		startTime := time.Now()
+		filesOpened := 0
+
+		err := filepath.WalkDir(w.workspacePath, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+
+			// Skip directories that should be excluded
+			if d.IsDir() {
+				log.Println(path)
+				if path != w.workspacePath && shouldExcludeDir(path) {
+					if debug {
+						log.Printf("Skipping excluded directory!!: %s", path)
+					}
+					return filepath.SkipDir
+				}
+			} else {
+				// Process files
+				w.openMatchingFile(ctx, path)
+				filesOpened++
+
+				// Add a small delay after every 100 files to prevent overwhelming the server
+				if filesOpened%100 == 0 {
+					time.Sleep(10 * time.Millisecond)
+				}
+			}
+
+			return nil
+		})
+
+		elapsedTime := time.Since(startTime)
+		if debug {
+			log.Printf("Workspace scan complete: processed %d files in %.2f seconds", filesOpened, elapsedTime.Seconds())
+		}
+
+		if err != nil && debug {
+			log.Printf("Error scanning workspace for files to open: %v", err)
+		}
+	}()
 }
 
 // WatchWorkspace sets up file watching for a workspace
@@ -108,7 +152,7 @@ func (w *WorkspaceWatcher) WatchWorkspace(ctx context.Context, workspacePath str
 
 	// Register handler for file watcher registrations from the server
 	lsp.RegisterFileWatchHandler(func(id string, watchers []protocol.FileSystemWatcher) {
-		w.AddRegistrations(id, watchers)
+		w.AddRegistrations(ctx, id, watchers)
 	})
 
 	watcher, err := fsnotify.NewWatcher()
@@ -123,10 +167,12 @@ func (w *WorkspaceWatcher) WatchWorkspace(ctx context.Context, workspacePath str
 			return err
 		}
 
-		// Skip dot directories (except workspace root)
+		// Skip excluded directories (except workspace root)
 		if d.IsDir() && path != workspacePath {
-			base := filepath.Base(path)
-			if strings.HasPrefix(base, ".") {
+			if shouldExcludeDir(path) {
+				if debug {
+					log.Printf("Skipping watching excluded directory: %s", path)
+				}
 				return filepath.SkipDir
 			}
 		}
@@ -156,22 +202,22 @@ func (w *WorkspaceWatcher) WatchWorkspace(ctx context.Context, workspacePath str
 				return
 			}
 
-			// Skip temporary files and hidden files
-			fileName := filepath.Base(event.Name)
-			if strings.HasPrefix(fileName, ".") ||
-				strings.HasSuffix(event.Name, "~") ||
-				strings.HasSuffix(event.Name, ".swp") {
-				continue
-			}
-
 			uri := fmt.Sprintf("file://%s", event.Name)
 
 			// Add new directories to the watcher
 			if event.Op&fsnotify.Create != 0 {
-				if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
-					if filepath.Base(event.Name)[0] != '.' { // Skip dot directories
-						if err := watcher.Add(event.Name); err != nil {
-							log.Printf("Error watching new directory: %v", err)
+				if info, err := os.Stat(event.Name); err == nil {
+					if info.IsDir() {
+						// Skip excluded directories
+						if !shouldExcludeDir(event.Name) {
+							if err := watcher.Add(event.Name); err != nil {
+								log.Printf("Error watching new directory: %v", err)
+							}
+						}
+					} else {
+						// For newly created files
+						if !shouldExcludeFile(event.Name) {
+							w.openMatchingFile(ctx, event.Name)
 						}
 					}
 				}
@@ -192,7 +238,10 @@ func (w *WorkspaceWatcher) WatchWorkspace(ctx context.Context, workspacePath str
 						w.debounceHandleFileEvent(ctx, uri, protocol.FileChangeType(protocol.Changed))
 					}
 				case event.Op&fsnotify.Create != 0:
-					if watchKind&protocol.WatchCreate != 0 {
+					// Already handled earlier in the event loop
+					// Just send the notification if needed
+					info, _ := os.Stat(event.Name)
+					if !info.IsDir() && watchKind&protocol.WatchCreate != 0 {
 						w.debounceHandleFileEvent(ctx, uri, protocol.FileChangeType(protocol.Created))
 					}
 				case event.Op&fsnotify.Remove != 0:
@@ -424,13 +473,6 @@ func (w *WorkspaceWatcher) handleFileEvent(ctx context.Context, uri string, chan
 		return
 	}
 
-	// For delete events, close the file if it's open
-	if changeType == protocol.FileChangeType(protocol.Deleted) && w.client.IsFileOpen(filePath) {
-		if err := w.client.CloseFile(ctx, filePath); err != nil {
-			log.Printf("Error closing file: %v", err)
-		}
-	}
-
 	// Notify LSP server about the file event using didChangeWatchedFiles
 	if err := w.notifyFileEvent(ctx, uri, changeType); err != nil {
 		log.Printf("Error notifying LSP server about file event: %v", err)
@@ -453,4 +495,140 @@ func (w *WorkspaceWatcher) notifyFileEvent(ctx context.Context, uri string, chan
 	}
 
 	return w.client.DidChangeWatchedFiles(ctx, params)
+}
+
+// Common patterns for directories and files to exclude
+// TODO: make configurable
+var (
+	excludedDirNames = map[string]bool{
+		".git":         true,
+		"node_modules": true,
+		"dist":         true,
+		"build":        true,
+		"out":          true,
+		"bin":          true,
+		".idea":        true,
+		".vscode":      true,
+		".cache":       true,
+		"coverage":     true,
+		"target":       true, // Rust build output
+		"vendor":       true, // Go vendor directory
+	}
+
+	excludedFileExtensions = map[string]bool{
+		".swp":   true,
+		".swo":   true,
+		".tmp":   true,
+		".temp":  true,
+		".bak":   true,
+		".log":   true,
+		".o":     true, // Object files
+		".so":    true, // Shared libraries
+		".dylib": true, // macOS shared libraries
+		".dll":   true, // Windows shared libraries
+		".a":     true, // Static libraries
+		".exe":   true, // Windows executables
+		".lock":  true, // Lock files
+	}
+
+	// Large binary files that shouldn't be opened
+	largeBinaryExtensions = map[string]bool{
+		".png":  true,
+		".jpg":  true,
+		".jpeg": true,
+		".gif":  true,
+		".bmp":  true,
+		".ico":  true,
+		".zip":  true,
+		".tar":  true,
+		".gz":   true,
+		".rar":  true,
+		".7z":   true,
+		".pdf":  true,
+		".mp3":  true,
+		".mp4":  true,
+		".mov":  true,
+		".wav":  true,
+		".wasm": true,
+	}
+
+	// Maximum file size to open (5MB)
+	maxFileSize int64 = 5 * 1024 * 1024
+)
+
+// shouldExcludeDir returns true if the directory should be excluded from watching/opening
+func shouldExcludeDir(dirPath string) bool {
+	dirName := filepath.Base(dirPath)
+
+	// Skip dot directories
+	if strings.HasPrefix(dirName, ".") {
+		return true
+	}
+
+	// Skip common excluded directories
+	if excludedDirNames[dirName] {
+		return true
+	}
+
+	return false
+}
+
+// shouldExcludeFile returns true if the file should be excluded from opening
+func shouldExcludeFile(filePath string) bool {
+	fileName := filepath.Base(filePath)
+
+	// Skip dot files
+	if strings.HasPrefix(fileName, ".") {
+		return true
+	}
+
+	// Check file extension
+	ext := strings.ToLower(filepath.Ext(filePath))
+	if excludedFileExtensions[ext] || largeBinaryExtensions[ext] {
+		return true
+	}
+
+	// Skip temporary files
+	if strings.HasSuffix(filePath, "~") {
+		return true
+	}
+
+	// Check file size
+	info, err := os.Stat(filePath)
+	if err != nil {
+		// If we can't stat the file, skip it
+		return true
+	}
+
+	// Skip large files
+	if info.Size() > maxFileSize {
+		if debug {
+			log.Printf("Skipping large file: %s (%.2f MB)", filePath, float64(info.Size())/(1024*1024))
+		}
+		return true
+	}
+
+	return false
+}
+
+// openMatchingFile opens a file if it matches any of the registered patterns
+func (w *WorkspaceWatcher) openMatchingFile(ctx context.Context, path string) {
+	// Skip directories
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() {
+		return
+	}
+
+	// Skip excluded files
+	if shouldExcludeFile(path) {
+		return
+	}
+
+	// Check if this path should be watched according to server registrations
+	if watched, _ := w.isPathWatched(path); watched {
+		// Don't need to check if it's already open - the client.OpenFile handles that
+		if err := w.client.OpenFile(ctx, path); err != nil && debug {
+			log.Printf("Error opening file %s: %v", path, err)
+		}
+	}
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
 	"github.com/isaacphi/mcp-language-server/internal/tools"
+	"github.com/isaacphi/mcp-language-server/internal/watcher"
 )
 
 type config struct {
@@ -73,6 +74,8 @@ func main() {
 	defer client.Close()
 
 	ctx := context.Background()
+	workspaceWatcher := watcher.NewWorkspaceWatcher(client)
+
 	initResult, err := client.InitializeLSPClient(ctx, cfg.workspaceDir)
 	if err != nil {
 		log.Fatalf("Initialize failed: %v", err)
@@ -82,6 +85,9 @@ func main() {
 	if err := client.WaitForServerReady(ctx); err != nil {
 		log.Fatalf("Server failed to become ready: %v", err)
 	}
+
+	go workspaceWatcher.WatchWorkspace(ctx, cfg.workspaceDir)
+	time.Sleep(3 * time.Second)
 
 	///////////////////////////////////////////////////////////////////////////
 	// Test Tools
