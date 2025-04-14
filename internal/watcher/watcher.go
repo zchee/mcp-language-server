@@ -3,7 +3,6 @@ package watcher
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,11 +10,13 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/isaacphi/mcp-language-server/internal/logging"
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
 	"github.com/isaacphi/mcp-language-server/internal/protocol"
 )
 
-var debug = true // Force debug logging on
+// Create a logger for the watcher component
+var watcherLogger = logging.NewLogger(logging.Watcher)
 
 // WorkspaceWatcher manages LSP file watching
 type WorkspaceWatcher struct {
@@ -49,32 +50,33 @@ func (w *WorkspaceWatcher) AddRegistrations(ctx context.Context, id string, watc
 	// Add new watchers
 	w.registrations = append(w.registrations, watchers...)
 
-	// Print detailed registration information for debugging
-	if debug {
-		log.Printf("Added %d file watcher registrations (id: %s), total: %d",
-			len(watchers), id, len(w.registrations))
+	// Log registration information
+	watcherLogger.Info("Added %d file watcher registrations (id: %s), total: %d",
+		len(watchers), id, len(w.registrations))
 
+	// Detailed debug information about registrations
+	if watcherLogger.IsLevelEnabled(logging.LevelDebug) {
 		for i, watcher := range watchers {
-			log.Printf("Registration #%d raw data:", i+1)
+			watcherLogger.Debug("Registration #%d raw data:", i+1)
 
 			// Log the GlobPattern
 			switch v := watcher.GlobPattern.Value.(type) {
 			case string:
-				log.Printf("  GlobPattern: string pattern '%s'", v)
+				watcherLogger.Debug("  GlobPattern: string pattern '%s'", v)
 			case protocol.RelativePattern:
-				log.Printf("  GlobPattern: RelativePattern with pattern '%s'", v.Pattern)
+				watcherLogger.Debug("  GlobPattern: RelativePattern with pattern '%s'", v.Pattern)
 
 				// Log BaseURI details
 				switch u := v.BaseURI.Value.(type) {
 				case string:
-					log.Printf("    BaseURI: string '%s'", u)
+					watcherLogger.Debug("    BaseURI: string '%s'", u)
 				case protocol.DocumentUri:
-					log.Printf("    BaseURI: DocumentUri '%s'", u)
+					watcherLogger.Debug("    BaseURI: DocumentUri '%s'", u)
 				default:
-					log.Printf("    BaseURI: unknown type %T", u)
+					watcherLogger.Debug("    BaseURI: unknown type %T", u)
 				}
 			default:
-				log.Printf("  GlobPattern: unknown type %T", v)
+				watcherLogger.Debug("  GlobPattern: unknown type %T", v)
 			}
 
 			// Log WatchKind
@@ -82,7 +84,7 @@ func (w *WorkspaceWatcher) AddRegistrations(ctx context.Context, id string, watc
 			if watcher.Kind != nil {
 				watchKind = *watcher.Kind
 			}
-			log.Printf("  WatchKind: %d (Create:%v, Change:%v, Delete:%v)",
+			watcherLogger.Debug("  WatchKind: %d (Create:%v, Change:%v, Delete:%v)",
 				watchKind,
 				watchKind&protocol.WatchCreate != 0,
 				watchKind&protocol.WatchChange != 0,
@@ -96,7 +98,7 @@ func (w *WorkspaceWatcher) AddRegistrations(ctx context.Context, id string, watc
 
 			for _, testPath := range testPaths {
 				isMatch := w.matchesPattern(testPath, watcher.GlobPattern)
-				log.Printf("  Test path '%s': %v", testPath, isMatch)
+				watcherLogger.Debug("  Test path '%s': %v", testPath, isMatch)
 			}
 		}
 	}
@@ -114,11 +116,9 @@ func (w *WorkspaceWatcher) AddRegistrations(ctx context.Context, id string, watc
 
 			// Skip directories that should be excluded
 			if d.IsDir() {
-				log.Println(path)
+				watcherLogger.Debug("Processing directory: %s", path)
 				if path != w.workspacePath && shouldExcludeDir(path) {
-					if debug {
-						log.Printf("Skipping excluded directory!!: %s", path)
-					}
+					watcherLogger.Debug("Skipping excluded directory: %s", path)
 					return filepath.SkipDir
 				}
 			} else {
@@ -136,12 +136,11 @@ func (w *WorkspaceWatcher) AddRegistrations(ctx context.Context, id string, watc
 		})
 
 		elapsedTime := time.Since(startTime)
-		if debug {
-			log.Printf("Workspace scan complete: processed %d files in %.2f seconds", filesOpened, elapsedTime.Seconds())
-		}
+		watcherLogger.Info("Workspace scan complete: processed %d files in %.2f seconds", 
+			filesOpened, elapsedTime.Seconds())
 
-		if err != nil && debug {
-			log.Printf("Error scanning workspace for files to open: %v", err)
+		if err != nil {
+			watcherLogger.Error("Error scanning workspace for files to open: %v", err)
 		}
 	}()
 }
@@ -157,7 +156,7 @@ func (w *WorkspaceWatcher) WatchWorkspace(ctx context.Context, workspacePath str
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		log.Fatalf("Error creating watcher: %v", err)
+		watcherLogger.Fatal("Error creating watcher: %v", err)
 	}
 	defer watcher.Close()
 
@@ -170,9 +169,7 @@ func (w *WorkspaceWatcher) WatchWorkspace(ctx context.Context, workspacePath str
 		// Skip excluded directories (except workspace root)
 		if d.IsDir() && path != workspacePath {
 			if shouldExcludeDir(path) {
-				if debug {
-					log.Printf("Skipping watching excluded directory: %s", path)
-				}
+				watcherLogger.Debug("Skipping watching excluded directory: %s", path)
 				return filepath.SkipDir
 			}
 		}
@@ -181,7 +178,7 @@ func (w *WorkspaceWatcher) WatchWorkspace(ctx context.Context, workspacePath str
 		if d.IsDir() {
 			err = watcher.Add(path)
 			if err != nil {
-				log.Printf("Error watching path %s: %v", path, err)
+				watcherLogger.Error("Error watching path %s: %v", path, err)
 			}
 		}
 
@@ -189,7 +186,7 @@ func (w *WorkspaceWatcher) WatchWorkspace(ctx context.Context, workspacePath str
 	})
 
 	if err != nil {
-		log.Fatalf("Error walking workspace: %v", err)
+		watcherLogger.Fatal("Error walking workspace: %v", err)
 	}
 
 	// Event loop
@@ -211,7 +208,7 @@ func (w *WorkspaceWatcher) WatchWorkspace(ctx context.Context, workspacePath str
 						// Skip excluded directories
 						if !shouldExcludeDir(event.Name) {
 							if err := watcher.Add(event.Name); err != nil {
-								log.Printf("Error watching new directory: %v", err)
+								watcherLogger.Error("Error watching new directory: %v", err)
 							}
 						}
 					} else {
@@ -224,9 +221,9 @@ func (w *WorkspaceWatcher) WatchWorkspace(ctx context.Context, workspacePath str
 			}
 
 			// Debug logging
-			if debug {
+			if watcherLogger.IsLevelEnabled(logging.LevelDebug) {
 				matched, kind := w.isPathWatched(event.Name)
-				log.Printf("Event: %s, Op: %s, Watched: %v, Kind: %d",
+				watcherLogger.Debug("Event: %s, Op: %s, Watched: %v, Kind: %d",
 					event.Name, event.Op.String(), matched, kind)
 			}
 
@@ -266,7 +263,7 @@ func (w *WorkspaceWatcher) WatchWorkspace(ctx context.Context, workspacePath str
 			if !ok {
 				return
 			}
-			log.Printf("Watcher error: %v\n", err)
+			watcherLogger.Error("Watcher error: %v", err)
 		}
 	}
 }
@@ -391,7 +388,7 @@ func matchesSimpleGlob(pattern, path string) bool {
 	// Fall back to simple matching for simpler patterns
 	matched, err := filepath.Match(pattern, path)
 	if err != nil {
-		log.Printf("Error matching pattern %s: %v", pattern, err)
+		watcherLogger.Error("Error matching pattern %s: %v", pattern, err)
 		return false
 	}
 
@@ -402,7 +399,7 @@ func matchesSimpleGlob(pattern, path string) bool {
 func (w *WorkspaceWatcher) matchesPattern(path string, pattern protocol.GlobPattern) bool {
 	patternInfo, err := pattern.AsPattern()
 	if err != nil {
-		log.Printf("Error parsing pattern: %v", err)
+		watcherLogger.Error("Error parsing pattern: %v", err)
 		return false
 	}
 
@@ -427,7 +424,7 @@ func (w *WorkspaceWatcher) matchesPattern(path string, pattern protocol.GlobPatt
 	// Make path relative to basePath for matching
 	relPath, err := filepath.Rel(basePath, path)
 	if err != nil {
-		log.Printf("Error getting relative path for %s: %v", path, err)
+		watcherLogger.Error("Error getting relative path for %s: %v", path, err)
 		return false
 	}
 	relPath = filepath.ToSlash(relPath)
@@ -468,22 +465,20 @@ func (w *WorkspaceWatcher) handleFileEvent(ctx context.Context, uri string, chan
 	if changeType == protocol.FileChangeType(protocol.Changed) && w.client.IsFileOpen(filePath) {
 		err := w.client.NotifyChange(ctx, filePath)
 		if err != nil {
-			log.Printf("Error notifying change: %v", err)
+			watcherLogger.Error("Error notifying change: %v", err)
 		}
 		return
 	}
 
 	// Notify LSP server about the file event using didChangeWatchedFiles
 	if err := w.notifyFileEvent(ctx, uri, changeType); err != nil {
-		log.Printf("Error notifying LSP server about file event: %v", err)
+		watcherLogger.Error("Error notifying LSP server about file event: %v", err)
 	}
 }
 
 // notifyFileEvent sends a didChangeWatchedFiles notification for a file event
 func (w *WorkspaceWatcher) notifyFileEvent(ctx context.Context, uri string, changeType protocol.FileChangeType) error {
-	if debug {
-		log.Printf("Notifying file event: %s (type: %d)", uri, changeType)
-	}
+	watcherLogger.Debug("Notifying file event: %s (type: %d)", uri, changeType)
 
 	params := protocol.DidChangeWatchedFilesParams{
 		Changes: []protocol.FileEvent{
@@ -602,9 +597,7 @@ func shouldExcludeFile(filePath string) bool {
 
 	// Skip large files
 	if info.Size() > maxFileSize {
-		if debug {
-			log.Printf("Skipping large file: %s (%.2f MB)", filePath, float64(info.Size())/(1024*1024))
-		}
+		watcherLogger.Debug("Skipping large file: %s (%.2f MB)", filePath, float64(info.Size())/(1024*1024))
 		return true
 	}
 
@@ -627,8 +620,8 @@ func (w *WorkspaceWatcher) openMatchingFile(ctx context.Context, path string) {
 	// Check if this path should be watched according to server registrations
 	if watched, _ := w.isPathWatched(path); watched {
 		// Don't need to check if it's already open - the client.OpenFile handles that
-		if err := w.client.OpenFile(ctx, path); err != nil && debug {
-			log.Printf("Error opening file %s: %v", path, err)
+		if err := w.client.OpenFile(ctx, path); err != nil && watcherLogger.IsLevelEnabled(logging.LevelDebug) {
+			watcherLogger.Debug("Error opening file %s: %v", path, err)
 		}
 	}
 }

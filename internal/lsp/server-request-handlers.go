@@ -2,11 +2,21 @@ package lsp
 
 import (
 	"encoding/json"
-	"log"
 
 	"github.com/isaacphi/mcp-language-server/internal/protocol"
 	"github.com/isaacphi/mcp-language-server/internal/utilities"
 )
+
+// FileWatchHandler is called when file watchers are registered by the server
+type FileWatchHandler func(id string, watchers []protocol.FileSystemWatcher)
+
+// fileWatchHandler holds the current file watch handler
+var fileWatchHandler FileWatchHandler
+
+// RegisterFileWatchHandler registers a handler for file watcher registrations
+func RegisterFileWatchHandler(handler FileWatchHandler) {
+	fileWatchHandler = handler
+}
 
 // Requests
 
@@ -17,30 +27,33 @@ func HandleWorkspaceConfiguration(params json.RawMessage) (interface{}, error) {
 func HandleRegisterCapability(params json.RawMessage) (interface{}, error) {
 	var registerParams protocol.RegistrationParams
 	if err := json.Unmarshal(params, &registerParams); err != nil {
-		log.Printf("Error unmarshaling registration params: %v", err)
+		lspLogger.Error("Error unmarshaling registration params: %v", err)
 		return nil, err
 	}
 
 	for _, reg := range registerParams.Registrations {
-		log.Printf("Registration received for method: %s, id: %s", reg.Method, reg.ID)
+		lspLogger.Info("Registration received for method: %s, id: %s", reg.Method, reg.ID)
 
-		switch reg.Method {
-		case "workspace/didChangeWatchedFiles":
-			// Parse the registration options
-			optionsJSON, err := json.Marshal(reg.RegisterOptions)
+		// Special handling for file watcher registrations
+		if reg.Method == "workspace/didChangeWatchedFiles" {
+			// Parse the options into the appropriate type
+			var opts protocol.DidChangeWatchedFilesRegistrationOptions
+			optJson, err := json.Marshal(reg.RegisterOptions)
 			if err != nil {
-				log.Printf("Error marshaling registration options: %v", err)
+				lspLogger.Error("Error marshaling registration options: %v", err)
 				continue
 			}
 
-			var options protocol.DidChangeWatchedFilesRegistrationOptions
-			if err := json.Unmarshal(optionsJSON, &options); err != nil {
-				log.Printf("Error unmarshaling registration options: %v", err)
+			err = json.Unmarshal(optJson, &opts)
+			if err != nil {
+				lspLogger.Error("Error unmarshaling registration options: %v", err)
 				continue
 			}
 
-			// Store the file watchers registrations
-			notifyFileWatchRegistration(reg.ID, options.Watchers)
+			// Notify file watchers
+			if fileWatchHandler != nil {
+				fileWatchHandler(reg.ID, opts.Watchers)
+			}
 		}
 	}
 
@@ -48,61 +61,68 @@ func HandleRegisterCapability(params json.RawMessage) (interface{}, error) {
 }
 
 func HandleApplyEdit(params json.RawMessage) (interface{}, error) {
-	var edit protocol.ApplyWorkspaceEditParams
-	if err := json.Unmarshal(params, &edit); err != nil {
-		return nil, err
+	var workspaceEdit protocol.ApplyWorkspaceEditParams
+	if err := json.Unmarshal(params, &workspaceEdit); err != nil {
+		return protocol.ApplyWorkspaceEditResult{Applied: false}, err
 	}
 
-	err := utilities.ApplyWorkspaceEdit(edit.Edit)
+	// Apply the edits
+	err := utilities.ApplyWorkspaceEdit(workspaceEdit.Edit)
 	if err != nil {
-		log.Printf("Error applying workspace edit: %v", err)
-		return protocol.ApplyWorkspaceEditResult{Applied: false, FailureReason: err.Error()}, nil
+		lspLogger.Error("Error applying workspace edit: %v", err)
+		return protocol.ApplyWorkspaceEditResult{
+			Applied: false,
+			FailureReason: workspaceEditFailure(err),
+		}, nil
 	}
 
-	return protocol.ApplyWorkspaceEditResult{Applied: true}, nil
+	return protocol.ApplyWorkspaceEditResult{
+		Applied: true,
+	}, nil
 }
 
-// FileWatchRegistrationHandler is a function that will be called when file watch registrations are received
-type FileWatchRegistrationHandler func(id string, watchers []protocol.FileSystemWatcher)
-
-// fileWatchHandler holds the current handler for file watch registrations
-var fileWatchHandler FileWatchRegistrationHandler
-
-// RegisterFileWatchHandler sets the handler for file watch registrations
-func RegisterFileWatchHandler(handler FileWatchRegistrationHandler) {
-	fileWatchHandler = handler
-}
-
-// notifyFileWatchRegistration notifies the handler about new file watch registrations
-func notifyFileWatchRegistration(id string, watchers []protocol.FileSystemWatcher) {
-	if fileWatchHandler != nil {
-		fileWatchHandler(id, watchers)
+func workspaceEditFailure(err error) string {
+	if err == nil {
+		return ""
 	}
+	return err.Error()
 }
 
 // Notifications
 
+// HandleServerMessage processes window/showMessage notifications from the server
 func HandleServerMessage(params json.RawMessage) {
-	var msg struct {
-		Type    int    `json:"type"`
-		Message string `json:"message"`
-	}
-	if err := json.Unmarshal(params, &msg); err == nil {
-		log.Printf("Server message: %s\n", msg.Message)
-	}
-}
-
-func HandleDiagnostics(client *Client, params json.RawMessage) {
-	var diagParams protocol.PublishDiagnosticsParams
-	if err := json.Unmarshal(params, &diagParams); err != nil {
-		log.Printf("Error unmarshaling diagnostic params: %v", err)
+	var msg protocol.ShowMessageParams
+	if err := json.Unmarshal(params, &msg); err != nil {
+		lspLogger.Error("Error unmarshaling server message: %v", err)
 		return
 	}
 
+	// Log the message with appropriate level
+	switch msg.Type {
+	case protocol.Error:
+		lspLogger.Error("Server error: %s", msg.Message)
+	case protocol.Warning:
+		lspLogger.Warn("Server warning: %s", msg.Message)
+	case protocol.Info:
+		lspLogger.Info("Server info: %s", msg.Message)
+	default:
+		lspLogger.Debug("Server message: %s", msg.Message)
+	}
+}
+
+// HandleDiagnostics processes textDocument/publishDiagnostics notifications
+func HandleDiagnostics(client *Client, params json.RawMessage) {
+	var diagParams protocol.PublishDiagnosticsParams
+	if err := json.Unmarshal(params, &diagParams); err != nil {
+		lspLogger.Error("Error unmarshaling diagnostic params: %v", err)
+		return
+	}
+
+	// Save diagnostics in client
 	client.diagnosticsMu.Lock()
-	defer client.diagnosticsMu.Unlock()
-
 	client.diagnostics[diagParams.URI] = diagParams.Diagnostics
+	client.diagnosticsMu.Unlock()
 
-	log.Printf("Received diagnostics for %s: %d items", diagParams.URI, len(diagParams.Diagnostics))
+	lspLogger.Info("Received diagnostics for %s: %d items", diagParams.URI, len(diagParams.Diagnostics))
 }

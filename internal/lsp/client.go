@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -84,14 +83,15 @@ func NewClient(command string, args ...string) (*Client, error) {
 		return nil, fmt.Errorf("failed to start LSP server: %w", err)
 	}
 
-	// Handle stderr in a separate goroutine
+	// Handle stderr in a separate goroutine with proper logging
 	go func() {
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
-			fmt.Fprintf(os.Stderr, "LSP Server: %s\n", scanner.Text())
+			line := scanner.Text()
+			processLogger.Info("%s", line)
 		}
 		if err := scanner.Err(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading stderr: %v\n", err)
+			lspLogger.Error("Error reading LSP server stderr: %v", err)
 		}
 	}()
 
@@ -314,9 +314,7 @@ func (c *Client) OpenFile(ctx context.Context, filepath string) error {
 	}
 	c.openFilesMu.Unlock()
 
-	if debug {
-		log.Printf("Opened file: %s", filepath)
-	}
+	lspLogger.Debug("Opened file: %s", filepath)
 
 	return nil
 }
@@ -375,7 +373,7 @@ func (c *Client) CloseFile(ctx context.Context, filepath string) error {
 			URI: protocol.DocumentUri(uri),
 		},
 	}
-	log.Println("Closing", params.TextDocument.URI.Dir())
+	lspLogger.Debug("Closing file: %s", params.TextDocument.URI.Dir())
 	if err := c.Notify(ctx, "textDocument/didClose", params); err != nil {
 		return err
 	}
@@ -411,14 +409,12 @@ func (c *Client) CloseAllFiles(ctx context.Context) {
 	// Then close them all
 	for _, filePath := range filesToClose {
 		err := c.CloseFile(ctx, filePath)
-		if err != nil && debug {
-			log.Printf("Error closing file %s: %v", filePath, err)
+		if err != nil {
+			lspLogger.Error("Error closing file %s: %v", filePath, err)
 		}
 	}
 
-	if debug {
-		log.Printf("Closed %d files", len(filesToClose))
-	}
+	lspLogger.Debug("Closed %d files", len(filesToClose))
 }
 
 func (c *Client) GetFileDiagnostics(uri protocol.DocumentUri) []protocol.Diagnostic {

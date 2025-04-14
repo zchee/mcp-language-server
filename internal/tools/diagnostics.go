@@ -3,7 +3,6 @@ package tools
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -32,7 +31,7 @@ func GetDiagnosticsForFile(ctx context.Context, client *lsp.Client, filePath str
 	}
 	_, err = client.Diagnostic(ctx, diagParams)
 	if err != nil {
-		log.Printf("failed to get diagnostics: %v", err)
+		toolsLogger.Error("Failed to get diagnostics: %v", err)
 	}
 
 	// Get diagnostics from the cache
@@ -60,7 +59,7 @@ func GetDiagnosticsForFile(ctx context.Context, client *lsp.Client, filePath str
 			})
 			startLine = loc.Range.Start.Line + 1
 			if err != nil {
-				log.Printf("failed to get file content: %v", err)
+				toolsLogger.Error("Failed to get file content: %v", err)
 			} else {
 				codeContext = content
 			}

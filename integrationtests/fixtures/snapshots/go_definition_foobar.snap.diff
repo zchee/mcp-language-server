@@ -1,0 +1,28 @@
+=== Expected ===
+================================================================================
+Symbol: FooBar
+File: /var/folders/z_/1qd94mxs71l6sqx8cblgzgfm0000gn/T/mcp-lsp-test-208012671/workspace/main.go
+Kind: Function
+Container Name: example.com/testproject
+Start Position: Line 6, Column 1
+End Position: Line 8, Column 2
+================================================================================
+6|func FooBar() string {
+7|	return "Hello, World!"
+8|}
+
+
+
+=== Actual ===
+================================================================================
+Symbol: FooBar
+File: /var/folders/z_/1qd94mxs71l6sqx8cblgzgfm0000gn/T/mcp-lsp-test-4199468179/workspace/main.go
+Kind: Function
+Container Name: example.com/testproject
+Start Position: Line 6, Column 1
+End Position: Line 8, Column 2
+================================================================================
+6|func FooBar() string {
+7|	return "Hello, World!"
+8|}
+

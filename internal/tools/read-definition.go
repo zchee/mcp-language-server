@@ -3,7 +3,6 @@ package tools
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
@@ -49,7 +48,7 @@ func ReadDefinition(ctx context.Context, client *lsp.Client, symbolName string, 
 			}
 		}
 
-		log.Printf("Symbol: %s\n", symbol.GetName())
+		toolsLogger.Debug("Found symbol: %s", symbol.GetName())
 		loc := symbol.GetLocation()
 
 		banner := strings.Repeat("=", 80) + "\n"
@@ -71,7 +70,7 @@ func ReadDefinition(ctx context.Context, client *lsp.Client, symbolName string, 
 			strings.Repeat("=", 80))
 
 		if err != nil {
-			log.Printf("Error getting definition: %v\n", err)
+			toolsLogger.Error("Error getting definition: %v", err)
 			continue
 		}
 

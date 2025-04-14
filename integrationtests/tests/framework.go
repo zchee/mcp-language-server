@@ -9,23 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/isaacphi/mcp-language-server/internal/logging"
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
 	"github.com/isaacphi/mcp-language-server/internal/watcher"
 )
-
-// Logger interface allows different loggers to be used
-type Logger interface {
-	Printf(format string, v ...interface{})
-}
-
-// TestLogger implements Logger with testing.T
-type TestLogger struct {
-	t *testing.T
-}
-
-func (l *TestLogger) Printf(format string, v ...interface{}) {
-	l.t.Logf(format, v...)
-}
 
 // LSPTestConfig defines configuration for a language server test
 type LSPTestConfig struct {
@@ -45,11 +32,9 @@ type TestSuite struct {
 	Context       context.Context
 	Cancel        context.CancelFunc
 	Watcher       *watcher.WorkspaceWatcher
-	Logger        Logger
 	initialized   bool
 	cleanupOnce   sync.Once
-	stdoutLogFile *os.File
-	stderrLogFile *os.File
+	logFile       string
 	t             *testing.T
 }
 
@@ -60,7 +45,6 @@ func NewTestSuite(t *testing.T, config LSPTestConfig) *TestSuite {
 		Config:      config,
 		Context:     ctx,
 		Cancel:      cancel,
-		Logger:      &TestLogger{t: t},
 		initialized: false,
 		t:           t,
 	}
@@ -80,21 +64,36 @@ func (ts *TestSuite) Setup() error {
 	ts.TempDir = tempDir
 	ts.t.Logf("Created temporary directory: %s", tempDir)
 
-	// Set up log files
+	// Set up logging
 	logsDir := filepath.Join(tempDir, "logs")
 	if err := os.MkdirAll(logsDir, 0755); err != nil {
 		return fmt.Errorf("failed to create logs directory: %w", err)
 	}
 
-	ts.stdoutLogFile, err = os.Create(filepath.Join(logsDir, "lsp-stdout.log"))
-	if err != nil {
-		return fmt.Errorf("failed to create stdout log file: %w", err)
+	// Configure logging to write to a file
+	ts.logFile = filepath.Join(logsDir, "test.log")
+	if err := logging.SetupFileLogging(ts.logFile); err != nil {
+		return fmt.Errorf("failed to set up logging: %w", err)
 	}
-
-	ts.stderrLogFile, err = os.Create(filepath.Join(logsDir, "lsp-stderr.log"))
-	if err != nil {
-		return fmt.Errorf("failed to create stderr log file: %w", err)
+	
+	// Set log levels based on test configuration
+	logging.SetGlobalLevel(logging.LevelInfo)
+	
+	// Enable debug logging for specific components
+	if os.Getenv("DEBUG_LSP") == "true" {
+		logging.SetLevel(logging.LSP, logging.LevelDebug)
 	}
+	if os.Getenv("DEBUG_LSP_WIRE") == "true" {
+		logging.SetLevel(logging.LSPWire, logging.LevelDebug)
+	}
+	if os.Getenv("DEBUG_LSP_PROCESS") == "true" {
+		logging.SetLevel(logging.LSPProcess, logging.LevelDebug)
+	}
+	if os.Getenv("DEBUG_WATCHER") == "true" {
+		logging.SetLevel(logging.Watcher, logging.LevelDebug)
+	}
+	
+	ts.t.Logf("Logs will be written to: %s", ts.logFile)
 
 	// Copy workspace template
 	workspaceDir := filepath.Join(tempDir, "workspace")
@@ -173,13 +172,7 @@ func (ts *TestSuite) Cleanup() {
 			}
 		}
 
-		// Close log files
-		if ts.stdoutLogFile != nil {
-			ts.stdoutLogFile.Close()
-		}
-		if ts.stderrLogFile != nil {
-			ts.stderrLogFile.Close()
-		}
+		// No need to close log files explicitly, logging package handles that
 
 		ts.t.Logf("Test artifacts are in: %s", ts.TempDir)
 		ts.t.Logf("To clean up, run: rm -rf %s", ts.TempDir)

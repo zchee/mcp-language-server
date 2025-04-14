@@ -8,6 +8,11 @@ import (
 	"testing"
 )
 
+// Logger is an interface for logging in tests
+type Logger interface {
+	Printf(format string, v ...interface{})
+}
+
 // Helper to copy directories recursively
 func copyDir(src, dst string) error {
 	srcInfo, err := os.Stat(src)
