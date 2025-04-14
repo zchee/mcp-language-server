@@ -1,5 +1,8 @@
 # Binary
 mcp-language-server
 
+# Test output
+test-output/
+
 # Temporary files
 *~
