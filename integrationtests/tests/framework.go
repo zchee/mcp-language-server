@@ -56,13 +56,44 @@ func (ts *TestSuite) Setup() error {
 		return fmt.Errorf("test suite already initialized")
 	}
 
-	// Create temp directory
-	tempDir, err := os.MkdirTemp("", "mcp-lsp-test-*")
+	// Create test output directory in the repo
+	
+	// Navigate to the repo root (assuming tests run from within the repo)
+	// The executable is in a temporary directory, so find the repo root based on the package path
+	pkgDir, err := filepath.Abs("../../")
 	if err != nil {
-		return fmt.Errorf("failed to create temp directory: %w", err)
+		return fmt.Errorf("failed to get absolute path to repo root: %w", err)
+	}
+	
+	testOutputDir := filepath.Join(pkgDir, "test-output")
+	if err := os.MkdirAll(testOutputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create test-output directory: %w", err)
+	}
+	
+	// Create a consistent directory for this language server
+	// Extract the language name from the config
+	langName := ts.Config.Name
+	if langName == "" {
+		langName = "unknown"
+	}
+	
+	// Use a consistent directory name based on the language
+	tempDir := filepath.Join(testOutputDir, langName)
+	
+	// Clean up previous test output
+	if _, err := os.Stat(tempDir); err == nil {
+		ts.t.Logf("Cleaning up previous test directory: %s", tempDir)
+		if err := os.RemoveAll(tempDir); err != nil {
+			ts.t.Logf("Warning: Failed to clean up previous test directory: %v", err)
+		}
+	}
+	
+	// Create a fresh directory
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		return fmt.Errorf("failed to create test directory: %w", err)
 	}
 	ts.TempDir = tempDir
-	ts.t.Logf("Created temporary directory: %s", tempDir)
+	ts.t.Logf("Created test directory: %s", tempDir)
 
 	// Set up logging
 	logsDir := filepath.Join(tempDir, "logs")

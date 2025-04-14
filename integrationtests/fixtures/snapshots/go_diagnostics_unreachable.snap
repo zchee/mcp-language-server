@@ -1,5 +1,5 @@
 ============================================================
-[WARNING] /var/folders/z_/1qd94mxs71l6sqx8cblgzgfm0000gn/T/mcp-lsp-test-208012671/workspace/main.go
+/TEST_OUTPUT/workspace/main.go
 Location: Line 8, Column 2
 Message: unreachable code
 Source: unreachable
@@ -12,7 +12,7 @@ Code: default
 
 
 ============================================================
-[ERROR] /var/folders/z_/1qd94mxs71l6sqx8cblgzgfm0000gn/T/mcp-lsp-test-208012671/workspace/main.go
+/TEST_OUTPUT/workspace/main.go
 Location: Line 9, Column 1
 Message: missing return
 Source: compiler

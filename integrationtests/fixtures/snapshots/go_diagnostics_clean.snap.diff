@@ -1,5 +1,0 @@
-=== Expected ===
-No diagnostics found for /var/folders/z_/1qd94mxs71l6sqx8cblgzgfm0000gn/T/mcp-lsp-test-208012671/workspace/main.go
-
-=== Actual ===
-No diagnostics found for /var/folders/z_/1qd94mxs71l6sqx8cblgzgfm0000gn/T/mcp-lsp-test-4199468179/workspace/main.go

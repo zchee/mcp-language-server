@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -93,9 +94,33 @@ func CleanupTestSuites(suites ...*TestSuite) {
 	}
 }
 
+// normalizePaths replaces absolute paths in the result with placeholder paths for consistent snapshots
+func normalizePaths(t *testing.T, input string) string {
+	// No need to get the repo root - we're just looking for patterns
+	
+	// Simple approach: just replace any path segments that contain workspace/
+	lines := strings.Split(input, "\n")
+	for i, line := range lines {
+		// Any line containing a path to a workspace file needs normalization
+		if strings.Contains(line, "/workspace/") {
+			// Extract everything after /workspace/
+			parts := strings.Split(line, "/workspace/")
+			if len(parts) > 1 {
+				// Replace with a simple placeholder path
+				lines[i] = "/TEST_OUTPUT/workspace/" + parts[1]
+			}
+		}
+	}
+	
+	return strings.Join(lines, "\n")
+}
+
 // SnapshotTest compares the actual result against an expected result file
-// If the file doesn't exist or --update-snapshots flag is provided, it will update the snapshot
+// If the file doesn't exist or UPDATE_SNAPSHOTS=true env var is set, it will update the snapshot
 func SnapshotTest(t *testing.T, snapshotName, actualResult string) {
+	// Normalize paths in the result to avoid system-specific paths in snapshots
+	actualResult = normalizePaths(t, actualResult)
+	
 	// Get the absolute path to the snapshots directory
 	repoRoot, err := filepath.Abs("../../")
 	if err != nil {
@@ -109,14 +134,8 @@ func SnapshotTest(t *testing.T, snapshotName, actualResult string) {
 
 	snapshotFile := filepath.Join(snapshotDir, snapshotName+".snap")
 
-	// Check if we should update snapshots
-	updateFlag := false
-	for _, arg := range os.Args {
-		if arg == "--update-snapshots" || arg == "-update-snapshots" {
-			updateFlag = true
-			break
-		}
-	}
+	// Use a package-level flag to control snapshot updates
+	updateFlag := os.Getenv("UPDATE_SNAPSHOTS") == "true"
 
 	// If snapshot doesn't exist or update flag is set, write the snapshot
 	_, err = os.Stat(snapshotFile)
