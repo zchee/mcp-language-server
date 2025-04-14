@@ -53,23 +53,23 @@ func TestGoLanguageServer(t *testing.T) {
 func testGoReadDefinition(t *testing.T, suite *TestSuite) {
 	ctx, cancel := context.WithTimeout(suite.Context, 5*time.Second)
 	defer cancel()
-	
+
 	// Call the ReadDefinition tool
 	result, err := tools.ReadDefinition(ctx, suite.Client, "FooBar", true)
 	if err != nil {
 		t.Fatalf("ReadDefinition failed: %v", err)
 	}
-	
+
 	// Verify the result
 	if result == "FooBar not found" {
 		t.Errorf("FooBar function not found")
 	}
-	
+
 	// Check that the result contains relevant function information
 	if !strings.Contains(result, "func FooBar()") {
 		t.Errorf("Definition does not contain expected function signature")
 	}
-	
+
 	// Use snapshot testing to verify exact output
 	SnapshotTest(t, "go_definition_foobar", result)
 }
@@ -80,18 +80,18 @@ func testGoDiagnostics(t *testing.T, suite *TestSuite) {
 	t.Run("CleanFile", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(suite.Context, 5*time.Second)
 		defer cancel()
-		
+
 		filePath := filepath.Join(suite.WorkspaceDir, "main.go")
 		result, err := tools.GetDiagnosticsForFile(ctx, suite.Client, filePath, true, true)
 		if err != nil {
 			t.Fatalf("GetDiagnosticsForFile failed: %v", err)
 		}
-		
-		// Verify we have no diagnostics 
+
+		// Verify we have no diagnostics
 		if !strings.Contains(result, "No diagnostics found") {
 			t.Errorf("Expected no diagnostics but got: %s", result)
 		}
-		
+
 		SnapshotTest(t, "go_diagnostics_clean", result)
 	})
 
@@ -119,27 +119,27 @@ func main() {
 
 		// Wait for diagnostics to be generated
 		time.Sleep(2 * time.Second)
-		
+
 		ctx, cancel := context.WithTimeout(suite.Context, 5*time.Second)
 		defer cancel()
-		
+
 		filePath := filepath.Join(suite.WorkspaceDir, "main.go")
 		result, err := tools.GetDiagnosticsForFile(ctx, suite.Client, filePath, true, true)
 		if err != nil {
 			t.Fatalf("GetDiagnosticsForFile failed: %v", err)
 		}
-		
+
 		// Verify we have diagnostics about unreachable code
 		if strings.Contains(result, "No diagnostics found") {
 			t.Errorf("Expected diagnostics but got none")
 		}
-		
+
 		if !strings.Contains(result, "unreachable") {
 			t.Errorf("Expected unreachable code error but got: %s", result)
 		}
-		
+
 		SnapshotTest(t, "go_diagnostics_unreachable", result)
-		
+
 		// Restore the original file for other tests
 		cleanCode := `package main
 
@@ -158,7 +158,7 @@ func main() {
 		if err != nil {
 			t.Fatalf("Failed to restore clean file: %v", err)
 		}
-		
+
 		// Wait for diagnostics to be cleared
 		time.Sleep(2 * time.Second)
 	})

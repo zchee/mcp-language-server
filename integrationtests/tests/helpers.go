@@ -101,14 +101,14 @@ func SnapshotTest(t *testing.T, snapshotName, actualResult string) {
 	if err != nil {
 		t.Fatalf("Failed to get repo root: %v", err)
 	}
-	
+
 	snapshotDir := filepath.Join(repoRoot, "integrationtests", "fixtures", "snapshots")
 	if err := os.MkdirAll(snapshotDir, 0755); err != nil {
 		t.Fatalf("Failed to create snapshots directory: %v", err)
 	}
-	
+
 	snapshotFile := filepath.Join(snapshotDir, snapshotName+".snap")
-	
+
 	// Check if we should update snapshots
 	updateFlag := false
 	for _, arg := range os.Args {
@@ -117,7 +117,7 @@ func SnapshotTest(t *testing.T, snapshotName, actualResult string) {
 			break
 		}
 	}
-	
+
 	// If snapshot doesn't exist or update flag is set, write the snapshot
 	_, err = os.Stat(snapshotFile)
 	if os.IsNotExist(err) || updateFlag {
@@ -131,18 +131,18 @@ func SnapshotTest(t *testing.T, snapshotName, actualResult string) {
 		}
 		return
 	}
-	
+
 	// Read the expected result
 	expectedBytes, err := os.ReadFile(snapshotFile)
 	if err != nil {
 		t.Fatalf("Failed to read snapshot: %v", err)
 	}
 	expected := string(expectedBytes)
-	
+
 	// Compare the results
 	if expected != actualResult {
 		t.Errorf("Result doesn't match snapshot.\nExpected:\n%s\n\nActual:\n%s", expected, actualResult)
-		
+
 		// Create a diff file for debugging
 		diffFile := snapshotFile + ".diff"
 		diffContent := fmt.Sprintf("=== Expected ===\n%s\n\n=== Actual ===\n%s", expected, actualResult)

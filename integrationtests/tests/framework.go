@@ -25,17 +25,17 @@ type LSPTestConfig struct {
 
 // TestSuite contains everything needed for running integration tests
 type TestSuite struct {
-	Config        LSPTestConfig
-	Client        *lsp.Client
-	WorkspaceDir  string
-	TempDir       string
-	Context       context.Context
-	Cancel        context.CancelFunc
-	Watcher       *watcher.WorkspaceWatcher
-	initialized   bool
-	cleanupOnce   sync.Once
-	logFile       string
-	t             *testing.T
+	Config       LSPTestConfig
+	Client       *lsp.Client
+	WorkspaceDir string
+	TempDir      string
+	Context      context.Context
+	Cancel       context.CancelFunc
+	Watcher      *watcher.WorkspaceWatcher
+	initialized  bool
+	cleanupOnce  sync.Once
+	logFile      string
+	t            *testing.T
 }
 
 // NewTestSuite creates a new test suite for the given language server
@@ -75,10 +75,10 @@ func (ts *TestSuite) Setup() error {
 	if err := logging.SetupFileLogging(ts.logFile); err != nil {
 		return fmt.Errorf("failed to set up logging: %w", err)
 	}
-	
+
 	// Set log levels based on test configuration
 	logging.SetGlobalLevel(logging.LevelInfo)
-	
+
 	// Enable debug logging for specific components
 	if os.Getenv("DEBUG_LSP") == "true" {
 		logging.SetLevel(logging.LSP, logging.LevelDebug)
@@ -92,7 +92,7 @@ func (ts *TestSuite) Setup() error {
 	if os.Getenv("DEBUG_WATCHER") == "true" {
 		logging.SetLevel(logging.Watcher, logging.LevelDebug)
 	}
-	
+
 	ts.t.Logf("Logs will be written to: %s", ts.logFile)
 
 	// Copy workspace template
@@ -137,7 +137,7 @@ func (ts *TestSuite) Setup() error {
 	}
 	ts.t.Logf("Waiting %d ms for LSP to initialize", initializeTime)
 	time.Sleep(time.Duration(initializeTime) * time.Millisecond)
-	
+
 	ts.initialized = true
 	return nil
 }
@@ -179,7 +179,6 @@ func (ts *TestSuite) Cleanup() {
 	})
 }
 
-
 // ReadFile reads a file from the workspace
 func (ts *TestSuite) ReadFile(relPath string) (string, error) {
 	path := filepath.Join(ts.WorkspaceDir, relPath)
@@ -207,5 +206,3 @@ func (ts *TestSuite) WriteFile(relPath, content string) error {
 	time.Sleep(500 * time.Millisecond)
 	return nil
 }
-
-

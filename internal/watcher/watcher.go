@@ -136,7 +136,7 @@ func (w *WorkspaceWatcher) AddRegistrations(ctx context.Context, id string, watc
 		})
 
 		elapsedTime := time.Since(startTime)
-		watcherLogger.Info("Workspace scan complete: processed %d files in %.2f seconds", 
+		watcherLogger.Info("Workspace scan complete: processed %d files in %.2f seconds",
 			filesOpened, elapsedTime.Seconds())
 
 		if err != nil {

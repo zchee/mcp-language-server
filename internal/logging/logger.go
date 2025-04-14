@@ -84,11 +84,11 @@ func init() {
 	ComponentLevels[Watcher] = DefaultMinLevel
 	ComponentLevels[Tools] = DefaultMinLevel
 	ComponentLevels[LSPProcess] = LevelInfo
-	
+
 	// Set LSPWire to a more restrictive level by default
 	// (don't show raw wire protocol messages unless explicitly enabled)
 	ComponentLevels[LSPWire] = LevelError
-	
+
 	// Parse log level from environment variable
 	if level := os.Getenv("LOG_LEVEL"); level != "" {
 		switch strings.ToUpper(level) {
@@ -241,12 +241,12 @@ func SetLevel(component Component, level LogLevel) {
 	ComponentLevels[component] = level
 }
 
-// SetGlobalLevel sets the log level for all components 
+// SetGlobalLevel sets the log level for all components
 // (except LSPWire which stays at its own level unless explicitly changed)
 func SetGlobalLevel(level LogLevel) {
 	logMu.Lock()
 	defer logMu.Unlock()
-	
+
 	DefaultMinLevel = level
 	for comp := range ComponentLevels {
 		if comp != LSPWire {
@@ -259,7 +259,7 @@ func SetGlobalLevel(level LogLevel) {
 func SetWriter(w io.Writer) {
 	logMu.Lock()
 	defer logMu.Unlock()
-	
+
 	Writer = w
 	log.SetOutput(Writer)
 }
@@ -270,10 +270,10 @@ func SetupFileLogging(filePath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %w", err)
 	}
-	
+
 	logMu.Lock()
 	defer logMu.Unlock()
-	
+
 	Writer = io.MultiWriter(os.Stderr, file)
 	log.SetOutput(Writer)
 	return nil
@@ -283,7 +283,7 @@ func SetupFileLogging(filePath string) error {
 func SetupTestLogging(captureOutput io.Writer) {
 	logMu.Lock()
 	defer logMu.Unlock()
-	
+
 	// Set test output for capturing logs
 	TestOutput = captureOutput
 }
@@ -292,6 +292,6 @@ func SetupTestLogging(captureOutput io.Writer) {
 func ResetTestLogging() {
 	logMu.Lock()
 	defer logMu.Unlock()
-	
+
 	TestOutput = nil
 }

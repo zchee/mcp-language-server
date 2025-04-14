@@ -25,7 +25,7 @@ func WriteMessage(w io.Writer, msg *Message) error {
 
 	// High-level operation log
 	lspLogger.Debug("Sending message: method=%s id=%d", msg.Method, msg.ID)
-	
+
 	// Wire protocol log (more detailed)
 	wireLogger.Debug("-> Sending: %s", string(data))
 

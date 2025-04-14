@@ -71,7 +71,7 @@ func HandleApplyEdit(params json.RawMessage) (interface{}, error) {
 	if err != nil {
 		lspLogger.Error("Error applying workspace edit: %v", err)
 		return protocol.ApplyWorkspaceEditResult{
-			Applied: false,
+			Applied:       false,
 			FailureReason: workspaceEditFailure(err),
 		}, nil
 	}
