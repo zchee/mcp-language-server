@@ -74,17 +74,6 @@ func copyFile(src, dst string) error {
 	return os.Chmod(dst, srcInfo.Mode())
 }
 
-// logWriter implements io.Writer to capture and log output
-type logWriter struct {
-	logger Logger
-	prefix string
-}
-
-func (w *logWriter) Write(p []byte) (n int, err error) {
-	w.logger.Printf("%s: %s", w.prefix, string(p))
-	return len(p), nil
-}
-
 // CleanupTestSuites is a helper to clean up all test suites in a test
 func CleanupTestSuites(suites ...*TestSuite) {
 	for _, suite := range suites {
@@ -97,7 +86,7 @@ func CleanupTestSuites(suites ...*TestSuite) {
 // normalizePaths replaces absolute paths in the result with placeholder paths for consistent snapshots
 func normalizePaths(t *testing.T, input string) string {
 	// No need to get the repo root - we're just looking for patterns
-	
+
 	// Simple approach: just replace any path segments that contain workspace/
 	lines := strings.Split(input, "\n")
 	for i, line := range lines {
@@ -111,7 +100,7 @@ func normalizePaths(t *testing.T, input string) string {
 			}
 		}
 	}
-	
+
 	return strings.Join(lines, "\n")
 }
 
@@ -120,7 +109,7 @@ func normalizePaths(t *testing.T, input string) string {
 func SnapshotTest(t *testing.T, snapshotName, actualResult string) {
 	// Normalize paths in the result to avoid system-specific paths in snapshots
 	actualResult = normalizePaths(t, actualResult)
-	
+
 	// Get the absolute path to the snapshots directory
 	repoRoot, err := filepath.Abs("../../")
 	if err != nil {
@@ -172,3 +161,4 @@ func SnapshotTest(t *testing.T, snapshotName, actualResult string) {
 		}
 	}
 }
+
