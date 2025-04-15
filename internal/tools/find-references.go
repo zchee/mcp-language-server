@@ -15,12 +15,12 @@ func FindReferences(ctx context.Context, client *lsp.Client, symbolName string, 
 		Query: symbolName,
 	})
 	if err != nil {
-		return "", fmt.Errorf("Failed to fetch symbol: %v", err)
+		return "", fmt.Errorf("failed to fetch symbol: %v", err)
 	}
 
 	results, err := symbolResult.Results()
 	if err != nil {
-		return "", fmt.Errorf("Failed to parse results: %v", err)
+		return "", fmt.Errorf("failed to parse results: %v", err)
 	}
 
 	var allReferences []string
@@ -47,7 +47,7 @@ func FindReferences(ctx context.Context, client *lsp.Client, symbolName string, 
 
 		refs, err := client.References(ctx, refsParams)
 		if err != nil {
-			return "", fmt.Errorf("Failed to get references: %v", err)
+			return "", fmt.Errorf("failed to get references: %v", err)
 		}
 
 		// Group references by file
