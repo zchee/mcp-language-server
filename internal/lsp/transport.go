@@ -102,7 +102,12 @@ func (c *Client) handleMessages() {
 	for {
 		msg, err := ReadMessage(c.stdout)
 		if err != nil {
-			lspLogger.Error("Error reading message: %v", err)
+			// Check if this is due to normal shutdown (EOF when closing connection)
+			if strings.Contains(err.Error(), "EOF") {
+				lspLogger.Info("LSP connection closed (EOF)")
+			} else {
+				lspLogger.Error("Error reading message: %v", err)
+			}
 			return
 		}
 

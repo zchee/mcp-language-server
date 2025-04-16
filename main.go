@@ -196,10 +196,27 @@ func cleanup(s *server, done chan struct{}) {
 		coreLogger.Info("Closing open files")
 		s.lspClient.CloseAllFiles(ctx)
 
-		coreLogger.Info("Sending shutdown request")
-		if err := s.lspClient.Shutdown(ctx); err != nil {
-			coreLogger.Error("Shutdown request failed: %v", err)
-		}
+			// Create a shorter timeout context for the shutdown request
+			shutdownCtx, shutdownCancel := context.WithTimeout(ctx, 500*time.Millisecond)
+			defer shutdownCancel()
+
+			// Run shutdown in a goroutine with timeout to avoid blocking if LSP doesn't respond
+			shutdownDone := make(chan struct{})
+			go func() {
+				coreLogger.Info("Sending shutdown request")
+				if err := s.lspClient.Shutdown(shutdownCtx); err != nil {
+					coreLogger.Error("Shutdown request failed: %v", err)
+				}
+				close(shutdownDone)
+			}()
+
+			// Wait for shutdown with timeout
+			select {
+			case <-shutdownDone:
+				coreLogger.Info("Shutdown request completed")
+			case <-time.After(1 * time.Second):
+				coreLogger.Warn("Shutdown request timed out, proceeding with exit")
+			}
 
 		coreLogger.Info("Sending exit notification")
 		if err := s.lspClient.Exit(ctx); err != nil {

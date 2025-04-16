@@ -235,28 +235,36 @@ func (c *Client) Close() error {
 	// Attempt to close files but continue shutdown regardless
 	c.CloseAllFiles(ctx)
 
-	// Close stdin to signal the server
-	if err := c.stdin.Close(); err != nil {
-		return fmt.Errorf("failed to close stdin: %w", err)
-	}
-
-	// Use a channel to handle the Wait with timeout
-	done := make(chan error, 1)
+	// Force kill the LSP process if it doesn't exit within timeout
+	forcedKill := make(chan struct{})
 	go func() {
-		done <- c.Cmd.Wait()
+		select {
+		case <-time.After(2 * time.Second):
+			lspLogger.Warn("LSP process did not exit within timeout, forcing kill")
+			if c.Cmd.Process != nil {
+				if err := c.Cmd.Process.Kill(); err != nil {
+					lspLogger.Error("Failed to kill process: %v", err)
+				} else {
+					lspLogger.Info("Process killed successfully")
+				}
+			}
+			close(forcedKill)
+		case <-forcedKill:
+			// Channel closed from completion path
+			return
+		}
 	}()
 
-	// Wait for process to exit with timeout
-	select {
-	case err := <-done:
-		return err
-	case <-time.After(2 * time.Second):
-		// If we timeout, try to kill the process
-		if err := c.Cmd.Process.Kill(); err != nil {
-			return fmt.Errorf("failed to kill process: %w", err)
-		}
-		return fmt.Errorf("process killed after timeout")
+	// Close stdin to signal the server
+	if err := c.stdin.Close(); err != nil {
+		lspLogger.Error("Failed to close stdin: %v", err)
 	}
+
+	// Wait for process to exit
+	err := c.Cmd.Wait()
+	close(forcedKill) // Stop the force kill goroutine
+
+	return err
 }
 
 type ServerState int
