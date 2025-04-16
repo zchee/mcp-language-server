@@ -1,5 +1,10 @@
 # MCP Language Server
 
+[![Go Tests](https://github.com/isaacphi/mcp-language-server/actions/workflows/go.yml/badge.svg)](https://github.com/isaacphi/mcp-language-server/actions/workflows/go.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/isaacphi/mcp-language-server)](https://goreportcard.com/report/github.com/isaacphi/mcp-language-server)
+[![GoDoc](https://pkg.go.dev/badge/github.com/isaacphi/mcp-language-server)](https://pkg.go.dev/github.com/isaacphi/mcp-language-server)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/isaacphi/mcp-language-server)](https://github.com/isaacphi/mcp-language-server/blob/main/go.mod)
+
 A Model Context Protocol (MCP) server that runs a language server and provides tools for communicating with it.
 
 ## Motivation
@@ -112,6 +117,18 @@ Build:
 
 ```bash
 go build
+```
+
+Run tests:
+
+```bash
+go test ./...
+```
+
+Update test snapshots:
+
+```bash
+UPDATE_SNAPSHOTS=true go test ./integrationtests/...
 ```
 
 Configure your Claude Desktop (or similar) to use the local binary:
