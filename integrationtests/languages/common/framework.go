@@ -1,4 +1,4 @@
-package tests
+package common
 
 import (
 	"context"
@@ -36,17 +36,19 @@ type TestSuite struct {
 	cleanupOnce  sync.Once
 	logFile      string
 	t            *testing.T
+	LanguageName string
 }
 
 // NewTestSuite creates a new test suite for the given language server
 func NewTestSuite(t *testing.T, config LSPTestConfig) *TestSuite {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &TestSuite{
-		Config:      config,
-		Context:     ctx,
-		Cancel:      cancel,
-		initialized: false,
-		t:           t,
+		Config:       config,
+		Context:      ctx,
+		Cancel:       cancel,
+		initialized:  false,
+		t:            t,
+		LanguageName: config.Name,
 	}
 }
 
@@ -57,29 +59,29 @@ func (ts *TestSuite) Setup() error {
 	}
 
 	// Create test output directory in the repo
-	
+
 	// Navigate to the repo root (assuming tests run from within the repo)
 	// The executable is in a temporary directory, so find the repo root based on the package path
-	pkgDir, err := filepath.Abs("../../")
+	pkgDir, err := filepath.Abs("../../../")
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path to repo root: %w", err)
 	}
-	
+
 	testOutputDir := filepath.Join(pkgDir, "test-output")
 	if err := os.MkdirAll(testOutputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create test-output directory: %w", err)
 	}
-	
+
 	// Create a consistent directory for this language server
 	// Extract the language name from the config
 	langName := ts.Config.Name
 	if langName == "" {
 		langName = "unknown"
 	}
-	
+
 	// Use a consistent directory name based on the language
 	tempDir := filepath.Join(testOutputDir, langName)
-	
+
 	// Clean up previous test output
 	if _, err := os.Stat(tempDir); err == nil {
 		ts.t.Logf("Cleaning up previous test directory: %s", tempDir)
@@ -87,7 +89,7 @@ func (ts *TestSuite) Setup() error {
 			ts.t.Logf("Warning: Failed to clean up previous test directory: %v", err)
 		}
 	}
-	
+
 	// Create a fresh directory
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
 		return fmt.Errorf("failed to create test directory: %w", err)
@@ -132,7 +134,7 @@ func (ts *TestSuite) Setup() error {
 		return fmt.Errorf("failed to create workspace directory: %w", err)
 	}
 
-	if err := copyDir(ts.Config.WorkspaceDir, workspaceDir); err != nil {
+	if err := CopyDir(ts.Config.WorkspaceDir, workspaceDir); err != nil {
 		return fmt.Errorf("failed to copy workspace template: %w", err)
 	}
 	ts.WorkspaceDir = workspaceDir

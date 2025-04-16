@@ -1,4 +1,4 @@
-package tests
+package common
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ type Logger interface {
 }
 
 // Helper to copy directories recursively
-func copyDir(src, dst string) error {
+func CopyDir(src, dst string) error {
 	srcInfo, err := os.Stat(src)
 	if err != nil {
 		return err
@@ -35,11 +35,11 @@ func copyDir(src, dst string) error {
 		dstPath := filepath.Join(dst, entry.Name())
 
 		if entry.IsDir() {
-			if err = copyDir(srcPath, dstPath); err != nil {
+			if err = CopyDir(srcPath, dstPath); err != nil {
 				return err
 			}
 		} else {
-			if err = copyFile(srcPath, dstPath); err != nil {
+			if err = CopyFile(srcPath, dstPath); err != nil {
 				return err
 			}
 		}
@@ -49,7 +49,7 @@ func copyDir(src, dst string) error {
 }
 
 // Helper to copy a single file
-func copyFile(src, dst string) error {
+func CopyFile(src, dst string) error {
 	srcFile, err := os.Open(src)
 	if err != nil {
 		return err
@@ -104,24 +104,51 @@ func normalizePaths(t *testing.T, input string) string {
 	return strings.Join(lines, "\n")
 }
 
+// findRepoRoot locates the repository root by looking for specific indicators
+func findRepoRoot() (string, error) {
+	// Start from the current directory and walk up until we find the main.go file
+	// which is at the repository root
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	for {
+		// Check if this is the repo root (has a go.mod file)
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			// Found the repo root
+			return dir, nil
+		}
+
+		// Move up one directory
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// We've reached the filesystem root without finding repo root
+			return "", fmt.Errorf("repository root not found")
+		}
+		dir = parent
+	}
+}
+
 // SnapshotTest compares the actual result against an expected result file
 // If the file doesn't exist or UPDATE_SNAPSHOTS=true env var is set, it will update the snapshot
-func SnapshotTest(t *testing.T, snapshotName, actualResult string) {
+func SnapshotTest(t *testing.T, languageName, toolName, testName, actualResult string) {
 	// Normalize paths in the result to avoid system-specific paths in snapshots
 	actualResult = normalizePaths(t, actualResult)
 
 	// Get the absolute path to the snapshots directory
-	repoRoot, err := filepath.Abs("../../")
+	repoRoot, err := findRepoRoot()
 	if err != nil {
-		t.Fatalf("Failed to get repo root: %v", err)
+		t.Fatalf("Failed to find repo root: %v", err)
 	}
 
-	snapshotDir := filepath.Join(repoRoot, "integrationtests", "fixtures", "snapshots")
+	// Build path based on language/tool/testName hierarchy
+	snapshotDir := filepath.Join(repoRoot, "integrationtests", "fixtures", "snapshots", languageName, toolName)
 	if err := os.MkdirAll(snapshotDir, 0755); err != nil {
 		t.Fatalf("Failed to create snapshots directory: %v", err)
 	}
 
-	snapshotFile := filepath.Join(snapshotDir, snapshotName+".snap")
+	snapshotFile := filepath.Join(snapshotDir, testName+".snap")
 
 	// Use a package-level flag to control snapshot updates
 	updateFlag := os.Getenv("UPDATE_SNAPSHOTS") == "true"
@@ -161,4 +188,3 @@ func SnapshotTest(t *testing.T, snapshotName, actualResult string) {
 		}
 	}
 }
-
