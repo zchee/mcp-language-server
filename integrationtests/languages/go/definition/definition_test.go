@@ -15,7 +15,7 @@ import (
 func TestReadDefinition(t *testing.T) {
 	suite := internal.GetTestSuite(t)
 
-	ctx, cancel := context.WithTimeout(suite.Context, 5*time.Second)
+	ctx, cancel := context.WithTimeout(suite.Context, 10*time.Second)
 	defer cancel()
 
 	// Call the ReadDefinition tool

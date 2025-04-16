@@ -29,6 +29,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - When finishing a task, run tests and ask the user to confirm that it works
 - Do not update documentation until finished and the user has confirmed that things work
 - Use `any` instead of `interface{}`
+- Explain what you're doing as you do it. Provide a short description of why you're editing code before you make an edit.
 
 ## Notes about codebase
 
@@ -39,4 +40,50 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - This repo is for a Model Context Provider (MCP) server. It runs a Language Server specified by the user and communicates with it over stdio. It exposes tools to interact with it via the MCP protocol.
 - Integration tests are in the `integrationtests/` folder and these should be used for development. This is the main important test suite.
 - Moving forwards, add unit tests next to the relevant code.
+
+## Writing Integration Tests
+
+Integration tests are organized by language and tool type, following this structure:
+
+```
+integrationtests/
+  ├── languages/
+  │   ├── common/            - Shared test framework code
+  │   │   ├── framework.go   - TestSuite and config definitions
+  │   │   └── helpers.go     - Testing utilities and snapshot support
+  │   └── go/                - Go language tests
+  │       ├── internal/      - Go-specific test helpers
+  │       ├── definition/    - Definition tool tests
+  │       └── diagnostics/   - Diagnostics tool tests
+  ├── fixtures/
+  │   └── snapshots/         - Snapshot test files (organized by language/tool)
+  └── workspaces/            - Template workspaces for testing
+      └── go/                - Go workspaces
+          ├── main.go        - Clean Go code for testing
+          └── with_errors/   - Workspace variant with intentional errors
+```
+
+Guidelines for writing integration tests:
+
+1. **Test Structure**:
+
+   - Organize tests by language (e.g., `go`, `typescript`) and tool (e.g., `definition`, `diagnostics`)
+   - Each tool gets its own test file in a dedicated directory
+   - Use the common test framework from `languages/common`
+
+2. **Writing Tests**:
+
+   - Use the `TestSuite` to manage LSP lifecycle and workspace
+   - Create test fixtures in the `workspaces` directory instead of writing files inline
+   - Use snapshot testing with `common.SnapshotTest` for verifying tool results
+   - Tests should be independent and cleanup resources properly
+
+3. **Running Tests**:
+   - Run all tests: `go test ./...`
+   - Run specific tool tests: `go test ./integrationtests/languages/go/definition`
+   - Update snapshots: `UPDATE_SNAPSHOTS=true go test ./integrationtests/...`
+
+Unit tests:
+
+- Simple unit tests should be written alongside the code in the standard Go fashion.
 

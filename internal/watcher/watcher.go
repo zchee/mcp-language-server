@@ -20,23 +20,31 @@ var watcherLogger = logging.NewLogger(logging.Watcher)
 
 // WorkspaceWatcher manages LSP file watching
 type WorkspaceWatcher struct {
-	client        *lsp.Client
+	client        LSPClient
 	workspacePath string
 
-	debounceTime time.Duration
-	debounceMap  map[string]*time.Timer
-	debounceMu   sync.Mutex
+	config      *WatcherConfig
+	debounceMap map[string]*time.Timer
+	debounceMu  sync.Mutex
 
 	// File watchers registered by the server
 	registrations  []protocol.FileSystemWatcher
 	registrationMu sync.RWMutex
+
+	// Gitignore matcher
+	gitignore *GitignoreMatcher
 }
 
-// NewWorkspaceWatcher creates a new workspace watcher
-func NewWorkspaceWatcher(client *lsp.Client) *WorkspaceWatcher {
+// NewWorkspaceWatcher creates a new workspace watcher with default configuration
+func NewWorkspaceWatcher(client LSPClient) *WorkspaceWatcher {
+	return NewWorkspaceWatcherWithConfig(client, DefaultWatcherConfig())
+}
+
+// NewWorkspaceWatcherWithConfig creates a new workspace watcher with custom configuration
+func NewWorkspaceWatcherWithConfig(client LSPClient, config *WatcherConfig) *WorkspaceWatcher {
 	return &WorkspaceWatcher{
 		client:        client,
-		debounceTime:  300 * time.Millisecond,
+		config:        config,
 		debounceMap:   make(map[string]*time.Timer),
 		registrations: []protocol.FileSystemWatcher{},
 	}
@@ -117,7 +125,7 @@ func (w *WorkspaceWatcher) AddRegistrations(ctx context.Context, id string, watc
 			// Skip directories that should be excluded
 			if d.IsDir() {
 				watcherLogger.Debug("Processing directory: %s", path)
-				if path != w.workspacePath && shouldExcludeDir(path) {
+				if path != w.workspacePath && w.shouldExcludeDir(path) {
 					watcherLogger.Debug("Skipping excluded directory: %s", path)
 					return filepath.SkipDir
 				}
@@ -149,6 +157,15 @@ func (w *WorkspaceWatcher) AddRegistrations(ctx context.Context, id string, watc
 func (w *WorkspaceWatcher) WatchWorkspace(ctx context.Context, workspacePath string) {
 	w.workspacePath = workspacePath
 
+	// Initialize gitignore matcher
+	gitignore, err := NewGitignoreMatcher(workspacePath)
+	if err != nil {
+		watcherLogger.Error("Error initializing gitignore matcher: %v", err)
+	} else {
+		w.gitignore = gitignore
+		watcherLogger.Info("Initialized gitignore matcher for %s", workspacePath)
+	}
+
 	// Register handler for file watcher registrations from the server
 	lsp.RegisterFileWatchHandler(func(id string, watchers []protocol.FileSystemWatcher) {
 		w.AddRegistrations(ctx, id, watchers)
@@ -168,7 +185,7 @@ func (w *WorkspaceWatcher) WatchWorkspace(ctx context.Context, workspacePath str
 
 		// Skip excluded directories (except workspace root)
 		if d.IsDir() && path != workspacePath {
-			if shouldExcludeDir(path) {
+			if w.shouldExcludeDir(path) {
 				watcherLogger.Debug("Skipping watching excluded directory: %s", path)
 				return filepath.SkipDir
 			}
@@ -201,19 +218,39 @@ func (w *WorkspaceWatcher) WatchWorkspace(ctx context.Context, workspacePath str
 
 			uri := fmt.Sprintf("file://%s", event.Name)
 
+			// Check if this is a file (not a directory) and should be excluded
+			isFile := false
+			isExcluded := false
+
+			if info, err := os.Stat(event.Name); err == nil {
+				isFile = !info.IsDir()
+				if isFile {
+					isExcluded = w.shouldExcludeFile(event.Name)
+					if isExcluded {
+						watcherLogger.Debug("Skipping excluded file: %s", event.Name)
+					}
+				} else {
+					// It's a directory
+					isExcluded = w.shouldExcludeDir(event.Name)
+					if isExcluded {
+						watcherLogger.Debug("Skipping excluded directory: %s", event.Name)
+					}
+				}
+			}
+
 			// Add new directories to the watcher
 			if event.Op&fsnotify.Create != 0 {
 				if info, err := os.Stat(event.Name); err == nil {
 					if info.IsDir() {
 						// Skip excluded directories
-						if !shouldExcludeDir(event.Name) {
+						if !w.shouldExcludeDir(event.Name) {
 							if err := watcher.Add(event.Name); err != nil {
 								watcherLogger.Error("Error watching new directory: %v", err)
 							}
 						}
 					} else {
 						// For newly created files
-						if !shouldExcludeFile(event.Name) {
+						if !w.shouldExcludeFile(event.Name) {
 							w.openMatchingFile(ctx, event.Name)
 						}
 					}
@@ -223,8 +260,13 @@ func (w *WorkspaceWatcher) WatchWorkspace(ctx context.Context, workspacePath str
 			// Debug logging
 			if watcherLogger.IsLevelEnabled(logging.LevelDebug) {
 				matched, kind := w.isPathWatched(event.Name)
-				watcherLogger.Debug("Event: %s, Op: %s, Watched: %v, Kind: %d",
-					event.Name, event.Op.String(), matched, kind)
+				watcherLogger.Debug("Event: %s, Op: %s, Watched: %v, Kind: %d, Excluded: %v",
+					event.Name, event.Op.String(), matched, kind, isExcluded)
+			}
+
+			// Skip excluded files from further processing
+			if isExcluded {
+				continue
 			}
 
 			// Check if this path should be watched according to server registrations
@@ -238,7 +280,7 @@ func (w *WorkspaceWatcher) WatchWorkspace(ctx context.Context, workspacePath str
 					// Already handled earlier in the event loop
 					// Just send the notification if needed
 					info, _ := os.Stat(event.Name)
-					if !info.IsDir() && watchKind&protocol.WatchCreate != 0 {
+					if info != nil && !info.IsDir() && watchKind&protocol.WatchCreate != 0 {
 						w.debounceHandleFileEvent(ctx, uri, protocol.FileChangeType(protocol.Created))
 					}
 				case event.Op&fsnotify.Remove != 0:
@@ -406,7 +448,30 @@ func (w *WorkspaceWatcher) matchesPattern(path string, pattern protocol.GlobPatt
 	basePath := patternInfo.GetBasePath()
 	patternText := patternInfo.GetPattern()
 
+	watcherLogger.Debug("Matching path %s against pattern %s (base: %s)", path, patternText, basePath)
+
 	path = filepath.ToSlash(path)
+
+	// Special handling for wildcard patterns like "**/*"
+	if patternText == "**/*" {
+		// This should match any file
+		watcherLogger.Debug("Using special matching for **/* pattern")
+		return true
+	}
+
+	// Special handling for wildcard patterns like "**/*.ext"
+	if strings.HasPrefix(patternText, "**/") {
+		if strings.HasPrefix(strings.TrimPrefix(patternText, "**/"), "*.") {
+			// Extension pattern like **/*.go
+			ext := strings.TrimPrefix(strings.TrimPrefix(patternText, "**/"), "*")
+			watcherLogger.Debug("Using extension matching for **/*.ext pattern: checking if %s ends with %s", path, ext)
+			return strings.HasSuffix(path, ext)
+		} else {
+			// Any other pattern starting with **/ should match any path
+			watcherLogger.Debug("Using path substring matching for **/ pattern")
+			return true
+		}
+	}
 
 	// For simple patterns without base path
 	if basePath == "" {
@@ -414,6 +479,7 @@ func (w *WorkspaceWatcher) matchesPattern(path string, pattern protocol.GlobPatt
 		fullPathMatch := matchesGlob(patternText, path)
 		baseNameMatch := matchesGlob(patternText, filepath.Base(path))
 
+		watcherLogger.Debug("No base path, fullPathMatch: %v, baseNameMatch: %v", fullPathMatch, baseNameMatch)
 		return fullPathMatch || baseNameMatch
 	}
 
@@ -430,6 +496,7 @@ func (w *WorkspaceWatcher) matchesPattern(path string, pattern protocol.GlobPatt
 	relPath = filepath.ToSlash(relPath)
 
 	isMatch := matchesGlob(patternText, relPath)
+	watcherLogger.Debug("Relative path matching: %s against %s = %v", relPath, patternText, isMatch)
 
 	return isMatch
 }
@@ -448,7 +515,7 @@ func (w *WorkspaceWatcher) debounceHandleFileEvent(ctx context.Context, uri stri
 	}
 
 	// Create new timer
-	w.debounceMap[key] = time.AfterFunc(w.debounceTime, func() {
+	w.debounceMap[key] = time.AfterFunc(w.config.DebounceTime, func() {
 		w.handleFileEvent(ctx, uri, changeType)
 
 		// Cleanup timer after execution
@@ -492,67 +559,8 @@ func (w *WorkspaceWatcher) notifyFileEvent(ctx context.Context, uri string, chan
 	return w.client.DidChangeWatchedFiles(ctx, params)
 }
 
-// Common patterns for directories and files to exclude
-// TODO: make configurable
-var (
-	excludedDirNames = map[string]bool{
-		".git":         true,
-		"node_modules": true,
-		"dist":         true,
-		"build":        true,
-		"out":          true,
-		"bin":          true,
-		".idea":        true,
-		".vscode":      true,
-		".cache":       true,
-		"coverage":     true,
-		"target":       true, // Rust build output
-		"vendor":       true, // Go vendor directory
-	}
-
-	excludedFileExtensions = map[string]bool{
-		".swp":   true,
-		".swo":   true,
-		".tmp":   true,
-		".temp":  true,
-		".bak":   true,
-		".log":   true,
-		".o":     true, // Object files
-		".so":    true, // Shared libraries
-		".dylib": true, // macOS shared libraries
-		".dll":   true, // Windows shared libraries
-		".a":     true, // Static libraries
-		".exe":   true, // Windows executables
-		".lock":  true, // Lock files
-	}
-
-	// Large binary files that shouldn't be opened
-	largeBinaryExtensions = map[string]bool{
-		".png":  true,
-		".jpg":  true,
-		".jpeg": true,
-		".gif":  true,
-		".bmp":  true,
-		".ico":  true,
-		".zip":  true,
-		".tar":  true,
-		".gz":   true,
-		".rar":  true,
-		".7z":   true,
-		".pdf":  true,
-		".mp3":  true,
-		".mp4":  true,
-		".mov":  true,
-		".wav":  true,
-		".wasm": true,
-	}
-
-	// Maximum file size to open (5MB)
-	maxFileSize int64 = 5 * 1024 * 1024
-)
-
 // shouldExcludeDir returns true if the directory should be excluded from watching/opening
-func shouldExcludeDir(dirPath string) bool {
+func (w *WorkspaceWatcher) shouldExcludeDir(dirPath string) bool {
 	dirName := filepath.Base(dirPath)
 
 	// Skip dot directories
@@ -561,7 +569,13 @@ func shouldExcludeDir(dirPath string) bool {
 	}
 
 	// Skip common excluded directories
-	if excludedDirNames[dirName] {
+	if w.config.ExcludedDirs[dirName] {
+		return true
+	}
+
+	// Check gitignore patterns
+	if w.gitignore != nil && w.gitignore.ShouldIgnore(dirPath, true) {
+		watcherLogger.Debug("Directory %s excluded by gitignore pattern", dirPath)
 		return true
 	}
 
@@ -569,7 +583,7 @@ func shouldExcludeDir(dirPath string) bool {
 }
 
 // shouldExcludeFile returns true if the file should be excluded from opening
-func shouldExcludeFile(filePath string) bool {
+func (w *WorkspaceWatcher) shouldExcludeFile(filePath string) bool {
 	fileName := filepath.Base(filePath)
 
 	// Skip dot files
@@ -579,12 +593,18 @@ func shouldExcludeFile(filePath string) bool {
 
 	// Check file extension
 	ext := strings.ToLower(filepath.Ext(filePath))
-	if excludedFileExtensions[ext] || largeBinaryExtensions[ext] {
+	if w.config.ExcludedFileExtensions[ext] || w.config.LargeBinaryExtensions[ext] {
 		return true
 	}
 
 	// Skip temporary files
 	if strings.HasSuffix(filePath, "~") {
+		return true
+	}
+
+	// Check gitignore patterns
+	if w.gitignore != nil && w.gitignore.ShouldIgnore(filePath, false) {
+		watcherLogger.Debug("File %s excluded by gitignore pattern", filePath)
 		return true
 	}
 
@@ -596,7 +616,7 @@ func shouldExcludeFile(filePath string) bool {
 	}
 
 	// Skip large files
-	if info.Size() > maxFileSize {
+	if info.Size() > w.config.MaxFileSize {
 		watcherLogger.Debug("Skipping large file: %s (%.2f MB)", filePath, float64(info.Size())/(1024*1024))
 		return true
 	}
@@ -613,7 +633,7 @@ func (w *WorkspaceWatcher) openMatchingFile(ctx context.Context, path string) {
 	}
 
 	// Skip excluded files
-	if shouldExcludeFile(path) {
+	if w.shouldExcludeFile(path) {
 		return
 	}
 
