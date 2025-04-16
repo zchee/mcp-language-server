@@ -4,7 +4,7 @@ This project includes code derived from the following third-party sources:
 
 ## Go Tools LSP Protocol Generator
 
-The code in `cmd/generate_protocol/` includes modified code from the Go Tools project's LSP protocol implementation.
+The code in `cmd/generate/` includes modified code from the Go Tools project's LSP protocol implementation.
 
 - **Source**: https://go.googlesource.com/tools
 - **License**: BSD 3-Clause

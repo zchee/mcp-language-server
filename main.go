@@ -119,6 +119,8 @@ func (s *server) start() error {
 }
 
 func main() {
+	coreLogger.Info("MCP Language Server starting")
+
 	done := make(chan struct{})
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)

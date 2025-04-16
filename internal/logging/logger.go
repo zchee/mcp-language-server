@@ -81,11 +81,11 @@ func init() {
 	// Set default levels for each component
 	ComponentLevels[Core] = DefaultMinLevel
 	ComponentLevels[LSP] = DefaultMinLevel
-	ComponentLevels[Watcher] = DefaultMinLevel
+	ComponentLevels[Watcher] = LevelInfo
 	ComponentLevels[Tools] = DefaultMinLevel
 	ComponentLevels[LSPProcess] = LevelInfo
 
-	// Set LSPWire to a more restrictive level by default
+	// Set LSPWire and Watcher to a more restrictive level by default
 	// (don't show raw wire protocol messages unless explicitly enabled)
 	ComponentLevels[LSPWire] = LevelError
 

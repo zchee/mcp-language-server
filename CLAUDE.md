@@ -31,6 +31,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Use `any` instead of `interface{}`
 - Explain what you're doing as you do it. Provide a short description of why you're editing code before you make an edit.
 - Do not add code comments referring to how the code has changed. Comments should only relate to the current state of the code.
+- Use lsp:apply_text_edit for code edits. BE CAREFUL because you need to know the exact line numbers, which change when editing files. Start at the end of the file and work towards the beginning.
 
 ## Notes about codebase
 
