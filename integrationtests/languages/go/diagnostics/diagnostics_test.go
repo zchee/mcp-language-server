@@ -22,7 +22,7 @@ func TestDiagnostics(t *testing.T) {
 		ctx, cancel := context.WithTimeout(suite.Context, 5*time.Second)
 		defer cancel()
 
-		filePath := filepath.Join(suite.WorkspaceDir, "main.go")
+		filePath := filepath.Join(suite.WorkspaceDir, "clean.go")
 		result, err := tools.GetDiagnosticsForFile(ctx, suite.Client, filePath, true, true)
 		if err != nil {
 			t.Fatalf("GetDiagnosticsForFile failed: %v", err)
@@ -39,7 +39,7 @@ func TestDiagnostics(t *testing.T) {
 	// Test with a file containing an error
 	t.Run("FileWithError", func(t *testing.T) {
 		// Get a test suite with code that contains errors
-		suite := internal.GetErrorTestSuite(t)
+		suite := internal.GetTestSuite(t)
 
 		// Wait for diagnostics to be generated
 		time.Sleep(2 * time.Second)
