@@ -83,7 +83,7 @@ Add something like the following configuration to your Claude Desktop settings (
         "--stdio"
       ],
       "env": {
-        "LOG_LEVEL": "DEBUG"
+        "LOG_LEVEL": "INFO"
       }
     }
   }
@@ -96,7 +96,7 @@ Replace:
 - `/opt/homebrew/bin/pyright-langserver` with the path to your language server (found using `which` command e.g. `which pyright-langserver`)
 - Any aruments after `--` are sent as arguments to your language server.
 - Any env variables are passed on to the language server. Some may be necessary for you language server. For example, `gopls` required `GOPATH` and `GOCACHE` in order for me to get it working properly.
-- `DEBUG=1` is optional. See below.
+- `LOG_LEVEL` is optional. See below.
 
 ## Development
 
@@ -180,3 +180,4 @@ The following features are on my radar:
 - [ ] Add LSP server configuration options and presets for common languages
 - [ ] Make a more consistent and scalable API for tools (pagination, etc.)
 - [ ] Create tools at a higher level of abstraction, combining diagnostics, code lens, hover, and code actions when reading definitions or references.
+
