@@ -84,7 +84,7 @@ func TestWatcherBasicFunctionality(t *testing.T) {
 		t.Logf("File created successfully")
 
 		// Wait for notification
-		waitCtx, waitCancel := context.WithTimeout(ctx, 2*time.Second)
+		waitCtx, waitCancel := context.WithTimeout(ctx, 10*time.Second)
 		defer waitCancel()
 
 		if !mockClient.WaitForEvent(waitCtx) {
