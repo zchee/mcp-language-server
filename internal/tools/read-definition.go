@@ -64,7 +64,7 @@ func ReadDefinition(ctx context.Context, client *lsp.Client, symbolName string, 
 		toolsLogger.Debug("Found symbol: %s", symbol.GetName())
 		loc := symbol.GetLocation()
 
-		banner := strings.Repeat("=", 80) + "\n"
+		banner := strings.Repeat("=", 3) + "\n"
 		definition, loc, err := GetFullDefinition(ctx, client, loc)
 		locationInfo := fmt.Sprintf(
 			"Symbol: %s\n"+
@@ -80,7 +80,7 @@ func ReadDefinition(ctx context.Context, client *lsp.Client, symbolName string, 
 			loc.Range.Start.Character+1,
 			loc.Range.End.Line+1,
 			loc.Range.End.Character+1,
-			strings.Repeat("=", 80))
+			strings.Repeat("=", 3))
 
 		if err != nil {
 			toolsLogger.Error("Error getting definition: %v", err)

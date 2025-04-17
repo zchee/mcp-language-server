@@ -78,7 +78,7 @@ func GetDiagnosticsForFile(ctx context.Context, client *lsp.Client, filePath str
 			"%s\n[%s] %s\n"+
 				"Location: %s\n"+
 				"Message: %s\n",
-			strings.Repeat("=", 60),
+			strings.Repeat("=", 3),
 			severity,
 			filePath,
 			location,
@@ -92,7 +92,7 @@ func GetDiagnosticsForFile(ctx context.Context, client *lsp.Client, filePath str
 			formattedDiag += fmt.Sprintf("Code: %v\n", diag.Code)
 		}
 
-		formattedDiag += strings.Repeat("=", 60)
+		formattedDiag += strings.Repeat("=", 3)
 
 		if codeContext != "" {
 			if showLineNumbers {
