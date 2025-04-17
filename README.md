@@ -83,7 +83,7 @@ Add something like the following configuration to your Claude Desktop settings (
         "--stdio"
       ],
       "env": {
-        "DEBUG": "1"
+        "LOG_LEVEL": "DEBUG"
       }
     }
   }
@@ -145,7 +145,7 @@ Configure your Claude Desktop (or similar) to use the local binary:
         "/path/to/language/server"
       ],
       "env": {
-        "DEBUG": "1"
+        "LOG_LEVEL": "DEBUG"
       }
     }
   }
@@ -160,11 +160,12 @@ Include
 
 ```
 env: {
-  "DEBUG": 1
+  "LOG_LEVEL": "DEBUG",
+  "LOG_COMPONENT_LEVELS": "wire:DEBUG"
 }
 ```
 
-To get detailed LSP and application logs. Please include as much information as possible when opening issues.
+To get detailed LSP and application logs. Setting `LOG_LEVEL` to DEBUG enables verbose logging for all components. Adding `LOG_COMPONENT_LEVELS` with `wire:DEBUG` shows raw LSP JSON messages. Please include as much information as possible when opening issues.
 
 The following features are on my radar:
 

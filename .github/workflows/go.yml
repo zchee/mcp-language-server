@@ -28,7 +28,7 @@ jobs:
         run: go build -o mcp-language-server
 
       - name: Run tests
-        run: go test -v ./...
+        run: go test ./...
 
       - name: Run code quality checks
         run: |
@@ -37,4 +37,3 @@ jobs:
 
           # Run code quality checks via justfile
           just check
-

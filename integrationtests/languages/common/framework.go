@@ -112,20 +112,6 @@ func (ts *TestSuite) Setup() error {
 	// Set log levels based on test configuration
 	logging.SetGlobalLevel(logging.LevelInfo)
 
-	// Enable debug logging for specific components
-	if os.Getenv("DEBUG_LSP") == "true" {
-		logging.SetLevel(logging.LSP, logging.LevelDebug)
-	}
-	if os.Getenv("DEBUG_LSP_WIRE") == "true" {
-		logging.SetLevel(logging.LSPWire, logging.LevelDebug)
-	}
-	if os.Getenv("DEBUG_LSP_PROCESS") == "true" {
-		logging.SetLevel(logging.LSPProcess, logging.LevelDebug)
-	}
-	if os.Getenv("DEBUG_WATCHER") == "true" {
-		logging.SetLevel(logging.Watcher, logging.LevelDebug)
-	}
-
 	ts.t.Logf("Logs will be written to: %s", ts.logFile)
 
 	// Copy workspace template

@@ -84,10 +84,7 @@ func init() {
 	ComponentLevels[Watcher] = DefaultMinLevel
 	ComponentLevels[Tools] = DefaultMinLevel
 	ComponentLevels[LSPProcess] = DefaultMinLevel
-
-	// Set LSPWire and to a more restrictive level by default
-	// (don't show raw wire protocol messages unless explicitly enabled)
-	ComponentLevels[LSPWire] = LevelError
+	ComponentLevels[LSPWire] = DefaultMinLevel
 
 	// Parse log level from environment variable
 	if level := os.Getenv("LOG_LEVEL"); level != "" {
@@ -104,11 +101,9 @@ func init() {
 			DefaultMinLevel = LevelFatal
 		}
 
-		// Set all components to this level by default (except LSPWire)
+		// Set all components to this level by default
 		for comp := range ComponentLevels {
-			if comp != LSPWire {
-				ComponentLevels[comp] = DefaultMinLevel
-			}
+			ComponentLevels[comp] = DefaultMinLevel
 		}
 	}
 
@@ -245,16 +240,13 @@ func SetLevel(component Component, level LogLevel) {
 }
 
 // SetGlobalLevel sets the log level for all components
-// (except LSPWire which stays at its own level unless explicitly changed)
 func SetGlobalLevel(level LogLevel) {
 	logMu.Lock()
 	defer logMu.Unlock()
 
 	DefaultMinLevel = level
 	for comp := range ComponentLevels {
-		if comp != LSPWire {
-			ComponentLevels[comp] = level
-		}
+		ComponentLevels[comp] = level
 	}
 }
 
