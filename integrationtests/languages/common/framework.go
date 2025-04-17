@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -82,11 +83,13 @@ func (ts *TestSuite) Setup() error {
 
 	// Use a consistent directory name based on the language
 	tempDir := filepath.Join(testOutputDir, langName)
+	logsDir := filepath.Join(tempDir, "logs")
+	workspaceDir := filepath.Join(tempDir, "workspace")
 
 	// Clean up previous test output
 	if _, err := os.Stat(tempDir); err == nil {
 		ts.t.Logf("Cleaning up previous test directory: %s", tempDir)
-		if err := os.RemoveAll(tempDir); err != nil {
+		if err := os.RemoveAll(workspaceDir); err != nil {
 			ts.t.Logf("Warning: Failed to clean up previous test directory: %v", err)
 		}
 	}
@@ -99,7 +102,6 @@ func (ts *TestSuite) Setup() error {
 	ts.t.Logf("Created test directory: %s", tempDir)
 
 	// Set up logging
-	logsDir := filepath.Join(tempDir, "logs")
 	if err := os.MkdirAll(logsDir, 0755); err != nil {
 		return fmt.Errorf("failed to create logs directory: %w", err)
 	}
@@ -111,7 +113,12 @@ func (ts *TestSuite) Setup() error {
 	testName = strings.ReplaceAll(testName, " ", "_")
 	logFileName := fmt.Sprintf("%s.log", testName)
 	ts.logFile = filepath.Join(logsDir, logFileName)
-	
+
+	// Clear file if it already existed
+	if err := os.Remove(ts.logFile); err != nil {
+		log.Printf("failed to remove old log file: %s", ts.logFile)
+	}
+
 	// Configure logging to write to the file
 	if err := logging.SetupFileLogging(ts.logFile); err != nil {
 		return fmt.Errorf("failed to set up logging: %w", err)
@@ -138,7 +145,6 @@ func (ts *TestSuite) Setup() error {
 	ts.t.Logf("Logs will be written to: %s (log level: %s)", ts.logFile, logLevel.String())
 
 	// Copy workspace template
-	workspaceDir := filepath.Join(tempDir, "workspace")
 	if err := os.MkdirAll(workspaceDir, 0755); err != nil {
 		return fmt.Errorf("failed to create workspace directory: %w", err)
 	}
@@ -222,11 +228,6 @@ func (ts *TestSuite) Cleanup() {
 	})
 }
 
-// LogFile returns the path to the log file for this test suite
-func (ts *TestSuite) LogFile() string {
-	return ts.logFile
-}
-
 // ReadFile reads a file from the workspace
 func (ts *TestSuite) ReadFile(relPath string) (string, error) {
 	path := filepath.Join(ts.WorkspaceDir, relPath)
@@ -254,3 +255,4 @@ func (ts *TestSuite) WriteFile(relPath, content string) error {
 	time.Sleep(500 * time.Millisecond)
 	return nil
 }
+
