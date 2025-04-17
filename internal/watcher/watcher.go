@@ -175,7 +175,11 @@ func (w *WorkspaceWatcher) WatchWorkspace(ctx context.Context, workspacePath str
 	if err != nil {
 		watcherLogger.Fatal("Error creating watcher: %v", err)
 	}
-	defer watcher.Close()
+	defer func() {
+		if err := watcher.Close(); err != nil {
+			watcherLogger.Error("Error closing watcher: %v", err)
+		}
+	}()
 
 	// Watch the workspace recursively
 	err = filepath.WalkDir(workspacePath, func(path string, d os.DirEntry, err error) error {

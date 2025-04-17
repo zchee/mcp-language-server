@@ -81,11 +81,11 @@ func init() {
 	// Set default levels for each component
 	ComponentLevels[Core] = DefaultMinLevel
 	ComponentLevels[LSP] = DefaultMinLevel
-	ComponentLevels[Watcher] = LevelInfo
+	ComponentLevels[Watcher] = DefaultMinLevel
 	ComponentLevels[Tools] = DefaultMinLevel
-	ComponentLevels[LSPProcess] = LevelInfo
+	ComponentLevels[LSPProcess] = DefaultMinLevel
 
-	// Set LSPWire and Watcher to a more restrictive level by default
+	// Set LSPWire and to a more restrictive level by default
 	// (don't show raw wire protocol messages unless explicitly enabled)
 	ComponentLevels[LSPWire] = LevelError
 
@@ -200,11 +200,15 @@ func (l *ComponentLogger) log(level LogLevel, format string, v ...interface{}) {
 	message := fmt.Sprintf(format, v...)
 	logMessage := fmt.Sprintf("[%s][%s] %s", level, l.component, message)
 
-	log.Output(3, logMessage)
+	if err := log.Output(3, logMessage); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to output log: %v\n", err)
+	}
 
 	// Write to test output if set
 	if TestOutput != nil {
-		fmt.Fprintln(TestOutput, logMessage)
+		if _, err := fmt.Fprintln(TestOutput, logMessage); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to output log to test output: %v\n", err)
+		}
 	}
 }
 

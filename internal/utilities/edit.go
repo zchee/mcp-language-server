@@ -119,7 +119,7 @@ func ApplyTextEdit(lines []string, edit protocol.TextEdit, lineEnding string) ([
 		startChar = len(startLineContent)
 	}
 	prefix := startLineContent[:startChar]
-	
+
 	// Get the suffix of the end line
 	endLineContent := lines[endLine]
 	if endChar < 0 || endChar > len(endLineContent) {

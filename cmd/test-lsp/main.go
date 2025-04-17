@@ -71,7 +71,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create LSP client: %v", err)
 	}
-	defer client.Close()
+	defer func() {
+		if err := client.Close(); err != nil {
+			log.Printf("Error closing client: %v", err)
+		}
+	}()
 
 	ctx := context.Background()
 	workspaceWatcher := watcher.NewWorkspaceWatcher(client)

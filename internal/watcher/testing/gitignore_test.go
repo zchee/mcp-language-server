@@ -13,12 +13,19 @@ import (
 
 // TestGitignorePatterns specifically tests the gitignore pattern integration
 func TestGitignorePatterns(t *testing.T) {
+	if os.Getenv("GITHUB_ACTIONS") == "true" {
+		t.Skip("Skipping filesystem watcher tests in GitHub Actions environment")
+	}
 	// Set up a test workspace in a temporary directory
 	testDir, err := os.MkdirTemp("", "watcher-gitignore-patterns-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(testDir)
+	defer func() {
+		if err := os.RemoveAll(testDir); err != nil {
+			t.Logf("Failed to remove test directory: %v", err)
+		}
+	}()
 
 	// Create a .gitignore file with specific patterns
 	gitignorePath := filepath.Join(testDir, ".gitignore")

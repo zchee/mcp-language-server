@@ -1114,4 +1114,3 @@ func TestApplyWorkspaceEdit(t *testing.T) {
 		})
 	}
 }
-

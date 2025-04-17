@@ -57,7 +57,11 @@ func processinline() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		defer os.RemoveAll(tmpdir)
+		defer func() {
+			if err := os.RemoveAll(tmpdir); err != nil {
+				log.Printf("Failed to remove temporary directory: %v", err)
+			}
+		}()
 
 		// Clone the repository.
 		cmd := exec.Command("git", "clone", "--quiet", "--depth=1", "-c", "advice.detachedHead=false", vscodeRepo, "--branch="+lspGitRef, "--single-branch", tmpdir)
