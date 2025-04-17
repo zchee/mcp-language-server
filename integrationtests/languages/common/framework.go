@@ -255,4 +255,3 @@ func (ts *TestSuite) WriteFile(relPath, content string) error {
 	time.Sleep(500 * time.Millisecond)
 	return nil
 }
-

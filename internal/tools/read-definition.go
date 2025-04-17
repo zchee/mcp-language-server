@@ -36,11 +36,24 @@ func ReadDefinition(ctx context.Context, client *lsp.Client, symbolName string, 
 			if v.ContainerName != "" {
 				container = fmt.Sprintf("Container Name: %s\n", v.ContainerName)
 			}
-			if v.Kind == protocol.Method && strings.HasSuffix(symbol.GetName(), symbolName) {
-				break
-			}
-			if symbol.GetName() != symbolName {
-				continue
+
+			// Handle different matching strategies based on the search term
+			if strings.Contains(symbolName, ".") {
+				// For qualified names like "Type.Method", require exact match
+				if symbol.GetName() != symbolName {
+					continue
+				}
+			} else {
+				// For unqualified names like "Method"
+				if v.Kind == protocol.Method {
+					// For methods, only match if the method name matches exactly Type.symbolName
+					if !strings.HasSuffix(symbol.GetName(), "."+symbolName) {
+						continue
+					}
+				} else if symbol.GetName() != symbolName {
+					// For non-methods, exact match only
+					continue
+				}
 			}
 		default:
 			if symbol.GetName() != symbolName {

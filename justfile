@@ -16,11 +16,14 @@ generate:
 
 # Run code audit checks
 check:
-  test -z "$(gofmt -s -l .)"
+  gofmt -l .
+  test -z "$(gofmt -l .)"
   go tool staticcheck ./...
   go tool govulncheck ./...
   go tool errcheck ./...
-  find . -name "*.go" | xargs gopls check
+  find . -path "./integrationtests/workspaces" -prune -o \
+    -path "./integrationtests/test-output" -prune -o \
+    -name "*.go" -print | xargs gopls check
 
 # Run tests
 test:

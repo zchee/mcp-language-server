@@ -79,6 +79,7 @@ Guidelines for writing integration tests:
    - Create test fixtures in the `workspaces` directory instead of writing files inline
    - Use snapshot testing with `common.SnapshotTest` for verifying tool results
    - Tests should be independent and cleanup resources properly
+   - It's ok to ignore errors in tests with results, \_ = functionThatMightError()
 
 3. **Running Tests**:
    - Run all tests: `go test ./...`
@@ -88,4 +89,3 @@ Guidelines for writing integration tests:
 Unit tests:
 
 - Simple unit tests should be written alongside the code in the standard Go fashion.
-

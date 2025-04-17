@@ -1,13 +1,12 @@
 ================================================================================
-Symbol: FooBar
-/TEST_OUTPUT/workspace/main.go
-Kind: Function
+Symbol: TestStruct.Method
+/TEST_OUTPUT/workspace/clean.go
+Kind: Method
 Container Name: github.com/isaacphi/mcp-language-server/integrationtests/test-output/go/workspace
-Start Position: Line 6, Column 1
-End Position: Line 9, Column 2
+Start Position: Line 12, Column 1
+End Position: Line 14, Column 2
 ================================================================================
- 6|func FooBar() string {
- 7|	return "Hello, World!"
- 8|	fmt.Println("Unreachable code") // This is unreachable code
- 9|}
+12|func (t *TestStruct) Method() string {
+13|	return t.Name
+14|}
 

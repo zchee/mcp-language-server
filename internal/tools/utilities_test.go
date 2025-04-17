@@ -82,16 +82,16 @@ func extractTextFromLocationForTest(loc protocol.Location) (string, error) {
 
 func TestExtractTextFromLocation_SingleLine(t *testing.T) {
 	mockContent := "function testFunction() {\n  return 'test';\n}"
-	
+
 	// Store original function and restore after test
 	originalFunc := readFileFunc
 	defer func() { readFileFunc = originalFunc }()
-	
+
 	// Set up mock implementation
 	readFileFunc = func(name string) ([]byte, error) {
 		return []byte(mockContent), nil
 	}
-	
+
 	location := protocol.Location{
 		URI: "file:///path/to/file.js",
 		Range: protocol.Range{
@@ -99,25 +99,25 @@ func TestExtractTextFromLocation_SingleLine(t *testing.T) {
 			End:   protocol.Position{Line: 0, Character: 21},
 		},
 	}
-	
+
 	result, err := extractTextFromLocationForTest(location)
-	
+
 	assert.NoError(t, err)
 	assert.Equal(t, "testFunction", result)
 }
 
 func TestExtractTextFromLocation_MultiLine(t *testing.T) {
 	mockContent := "function testFunction() {\n  return 'test';\n}"
-	
+
 	// Store original function and restore after test
 	originalFunc := readFileFunc
 	defer func() { readFileFunc = originalFunc }()
-	
+
 	// Set up mock implementation
 	readFileFunc = func(name string) ([]byte, error) {
 		return []byte(mockContent), nil
 	}
-	
+
 	location := protocol.Location{
 		URI: "file:///path/to/file.js",
 		Range: protocol.Range{
@@ -125,25 +125,25 @@ func TestExtractTextFromLocation_MultiLine(t *testing.T) {
 			End:   protocol.Position{Line: 1, Character: 15},
 		},
 	}
-	
+
 	result, err := extractTextFromLocationForTest(location)
-	
+
 	assert.NoError(t, err)
 	assert.Equal(t, "testFunction() {\n  return 'test'", result)
 }
 
 func TestExtractTextFromLocation_InvalidRange(t *testing.T) {
 	mockContent := "function testFunction() {\n  return 'test';\n}"
-	
+
 	// Store original function and restore after test
 	originalFunc := readFileFunc
 	defer func() { readFileFunc = originalFunc }()
-	
+
 	// Set up mock implementation
 	readFileFunc = func(name string) ([]byte, error) {
 		return []byte(mockContent), nil
 	}
-	
+
 	// Out of bounds line
 	location := protocol.Location{
 		URI: "file:///path/to/file.js",
@@ -152,10 +152,10 @@ func TestExtractTextFromLocation_InvalidRange(t *testing.T) {
 			End:   protocol.Position{Line: 5, Character: 15},
 		},
 	}
-	
+
 	_, err := extractTextFromLocationForTest(location)
 	assert.Error(t, err)
-	
+
 	// Out of bounds character on single line
 	location = protocol.Location{
 		URI: "file:///path/to/file.js",
@@ -164,7 +164,7 @@ func TestExtractTextFromLocation_InvalidRange(t *testing.T) {
 			End:   protocol.Position{Line: 0, Character: 100},
 		},
 	}
-	
+
 	_, err = extractTextFromLocationForTest(location)
 	assert.Error(t, err)
 }
@@ -173,12 +173,12 @@ func TestExtractTextFromLocation_FileError(t *testing.T) {
 	// Store original function and restore after test
 	originalFunc := readFileFunc
 	defer func() { readFileFunc = originalFunc }()
-	
+
 	// Mock implementation that returns an error
 	readFileFunc = func(name string) ([]byte, error) {
 		return nil, os.ErrNotExist
 	}
-	
+
 	location := protocol.Location{
 		URI: "file:///path/to/nonexistent.js",
 		Range: protocol.Range{
@@ -186,7 +186,7 @@ func TestExtractTextFromLocation_FileError(t *testing.T) {
 			End:   protocol.Position{Line: 0, Character: 21},
 		},
 	}
-	
+
 	_, err := extractTextFromLocationForTest(location)
 	assert.Error(t, err)
 }
@@ -289,11 +289,11 @@ func TestContainsPosition(t *testing.T) {
 			expected: true,
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			result := containsPosition(tc.r, tc.p)
-			assert.Equal(t, tc.expected, result, "Expected containsPosition to return %v for range %v and position %v", 
+			assert.Equal(t, tc.expected, result, "Expected containsPosition to return %v for range %v and position %v",
 				tc.expected, tc.r, tc.p)
 		})
 	}
@@ -331,7 +331,7 @@ func TestAddLineNumbers(t *testing.T) {
 			expected:  "1|\n",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			result := addLineNumbers(tc.text, tc.startLine)

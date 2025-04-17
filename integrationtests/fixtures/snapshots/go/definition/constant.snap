@@ -1,13 +1,10 @@
 ================================================================================
-Symbol: FooBar
-/TEST_OUTPUT/workspace/main.go
-Kind: Function
+Symbol: TestConstant
+/TEST_OUTPUT/workspace/clean.go
+Kind: Constant
 Container Name: github.com/isaacphi/mcp-language-server/integrationtests/test-output/go/workspace
-Start Position: Line 6, Column 1
-End Position: Line 9, Column 2
+Start Position: Line 25, Column 1
+End Position: Line 25, Column 38
 ================================================================================
- 6|func FooBar() string {
- 7|	return "Hello, World!"
- 8|	fmt.Println("Unreachable code") // This is unreachable code
- 9|}
+25|const TestConstant = "constant value"
 
