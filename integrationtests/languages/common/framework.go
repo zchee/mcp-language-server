@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -103,16 +104,38 @@ func (ts *TestSuite) Setup() error {
 		return fmt.Errorf("failed to create logs directory: %w", err)
 	}
 
-	// Configure logging to write to a file
-	ts.logFile = filepath.Join(logsDir, "test.log")
+	// Create a log file named after the test
+	testName := ts.t.Name()
+	// Clean the test name for use in a filename
+	testName = strings.ReplaceAll(testName, "/", "_")
+	testName = strings.ReplaceAll(testName, " ", "_")
+	logFileName := fmt.Sprintf("%s.log", testName)
+	ts.logFile = filepath.Join(logsDir, logFileName)
+	
+	// Configure logging to write to the file
 	if err := logging.SetupFileLogging(ts.logFile); err != nil {
 		return fmt.Errorf("failed to set up logging: %w", err)
 	}
 
-	// Set log levels based on test configuration
-	logging.SetGlobalLevel(logging.LevelInfo)
+	// Set log level based on environment variable or default to Info
+	logLevel := logging.LevelInfo
+	if envLevel := os.Getenv("LOG_LEVEL"); envLevel != "" {
+		switch strings.ToUpper(envLevel) {
+		case "DEBUG":
+			logLevel = logging.LevelDebug
+		case "INFO":
+			logLevel = logging.LevelInfo
+		case "WARN":
+			logLevel = logging.LevelWarn
+		case "ERROR":
+			logLevel = logging.LevelError
+		case "FATAL":
+			logLevel = logging.LevelFatal
+		}
+	}
+	logging.SetGlobalLevel(logLevel)
 
-	ts.t.Logf("Logs will be written to: %s", ts.logFile)
+	ts.t.Logf("Logs will be written to: %s (log level: %s)", ts.logFile, logLevel.String())
 
 	// Copy workspace template
 	workspaceDir := filepath.Join(tempDir, "workspace")
@@ -194,8 +217,14 @@ func (ts *TestSuite) Cleanup() {
 		// No need to close log files explicitly, logging package handles that
 
 		ts.t.Logf("Test artifacts are in: %s", ts.TempDir)
+		ts.t.Logf("Log file: %s", ts.logFile)
 		ts.t.Logf("To clean up, run: rm -rf %s", ts.TempDir)
 	})
+}
+
+// LogFile returns the path to the log file for this test suite
+func (ts *TestSuite) LogFile() string {
+	return ts.logFile
 }
 
 // ReadFile reads a file from the workspace

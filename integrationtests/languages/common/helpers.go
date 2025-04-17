@@ -112,8 +112,9 @@ func normalizePaths(_ *testing.T, input string) string {
 	return strings.Join(lines, "\n")
 }
 
-// findRepoRoot locates the repository root by looking for specific indicators
-func findRepoRoot() (string, error) {
+// FindRepoRoot locates the repository root by looking for specific indicators
+// Exported so it can be used by other packages
+func FindRepoRoot() (string, error) {
 	// Start from the current directory and walk up until we find the main.go file
 	// which is at the repository root
 	dir, err := os.Getwd()
@@ -145,7 +146,7 @@ func SnapshotTest(t *testing.T, languageName, toolName, testName, actualResult s
 	actualResult = normalizePaths(t, actualResult)
 
 	// Get the absolute path to the snapshots directory
-	repoRoot, err := findRepoRoot()
+	repoRoot, err := FindRepoRoot()
 	if err != nil {
 		t.Fatalf("Failed to find repo root: %v", err)
 	}
