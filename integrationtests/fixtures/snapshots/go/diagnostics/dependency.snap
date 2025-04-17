@@ -1,0 +1,14 @@
+============================================================
+/TEST_OUTPUT/workspace/consumer.go
+Location: Line 7, Column 28
+Message: not enough arguments in call to HelperFunction
+	have ()
+	want (int)
+Source: compiler
+Code: WrongArgCount
+============================================================
+ 6|func ConsumerFunction() {
+ 7|	message := HelperFunction()
+ 8|	fmt.Println(message)
+ 9|}
+

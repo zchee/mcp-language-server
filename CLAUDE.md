@@ -80,6 +80,7 @@ Guidelines for writing integration tests:
    - Use snapshot testing with `common.SnapshotTest` for verifying tool results
    - Tests should be independent and cleanup resources properly
    - It's ok to ignore errors in tests with results, \_ = functionThatMightError()
+   - DO NOT write files inline in the test suite. Add them to the workspaces directory
 
 3. **Running Tests**:
    - Run all tests: `go test ./...`

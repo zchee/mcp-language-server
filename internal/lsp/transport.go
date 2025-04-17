@@ -53,12 +53,11 @@ func ReadMessage(r *bufio.Reader) (*Message, error) {
 		}
 		line = strings.TrimSpace(line)
 
-		// Wire protocol details
-		wireLogger.Debug("<- Header: %s", line)
-
 		if line == "" {
 			break // End of headers
 		}
+
+		wireLogger.Debug("<- Header: %s", line)
 
 		if strings.HasPrefix(line, "Content-Length: ") {
 			_, err := fmt.Sscanf(line, "Content-Length: %d", &contentLength)
