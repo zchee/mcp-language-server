@@ -1,0 +1,77 @@
+
+===
+/TEST_OUTPUT/workspace/another_consumer.go
+References in File: 1
+===
+
+Reference at Line 15, Column 23:
+15|func AnotherConsumer() {
+16|	// Use helper function
+17|	fmt.Println("Another message:", HelperFunction())
+18|	
+19|	// Create another SharedStruct instance
+20|	s := &SharedStruct{
+21|		ID:   2,
+22|		Name: "another test",
+23|		Value: 99.9,
+24|		Constants: []string{SharedConstant, "extra"},
+25|	}
+26|	
+27|	// Use the struct methods
+28|	if name := s.GetName(); name != "" {
+29|		fmt.Println("Got name:", name)
+30|	}
+31|	
+32|	// Implement the interface with a custom type
+33|	type CustomImplementor struct {
+34|		SharedStruct
+35|	}
+36|	
+37|	custom := &CustomImplementor{
+38|		SharedStruct: *s,
+39|	}
+40|	
+41|	// Custom type implements SharedInterface through embedding
+42|	var iface SharedInterface = custom
+43|	iface.Process()
+44|	
+45|	// Use shared type as a slice type
+46|	values := []SharedType{1, 2, 3}
+47|	for _, v := range values {
+48|		fmt.Println("Value:", v)
+49|	}
+50|}
+
+
+
+===
+/TEST_OUTPUT/workspace/consumer.go
+References in File: 1
+===
+
+Reference at Line 15, Column 23:
+15|func ConsumerFunction() {
+16|	message := HelperFunction()
+17|	fmt.Println(message)
+18|	
+19|	// Use shared struct
+20|	s := &SharedStruct{
+21|		ID:   1,
+22|		Name: "test",
+23|		Value: 42.0,
+24|		Constants: []string{SharedConstant},
+25|	}
+26|	
+27|	// Call methods on the struct
+28|	fmt.Println(s.Method())
+29|	s.Process()
+30|	
+31|	// Use shared interface
+32|	var iface SharedInterface = s
+33|	fmt.Println(iface.GetName())
+34|	
+35|	// Use shared type
+36|	var t SharedType = 100
+37|	fmt.Println(t)
+38|}
+
