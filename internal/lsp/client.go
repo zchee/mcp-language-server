@@ -177,7 +177,7 @@ func (c *Client) InitializeLSPClient(ctx context.Context, workspaceDir string) (
 				},
 				Window: protocol.WindowClientCapabilities{},
 			},
-			InitializationOptions: map[string]interface{}{
+			InitializationOptions: map[string]any{
 				"codelenses": map[string]bool{
 					"generate":           true,
 					"regenerate_cgo":     true,

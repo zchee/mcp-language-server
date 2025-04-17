@@ -11,7 +11,7 @@ import (
 
 // Logger is an interface for logging in tests
 type Logger interface {
-	Printf(format string, v ...interface{})
+	Printf(format string, v ...any)
 }
 
 // Helper to copy directories recursively
@@ -92,7 +92,7 @@ func CleanupTestSuites(suites ...*TestSuite) {
 }
 
 // normalizePaths replaces absolute paths in the result with placeholder paths for consistent snapshots
-func normalizePaths(t *testing.T, input string) string {
+func normalizePaths(_ *testing.T, input string) string {
 	// No need to get the repo root - we're just looking for patterns
 
 	// Simple approach: just replace any path segments that contain workspace/

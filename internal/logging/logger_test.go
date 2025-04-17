@@ -2,6 +2,7 @@ package logging
 
 import (
 	"bytes"
+	"maps"
 	"strings"
 	"testing"
 )
@@ -10,9 +11,7 @@ func TestLogger(t *testing.T) {
 	// Save original writer to restore after test
 	originalWriter := Writer
 	originalLevels := make(map[Component]LogLevel)
-	for k, v := range ComponentLevels {
-		originalLevels[k] = v
-	}
+	maps.Copy(originalLevels, ComponentLevels)
 
 	// Set up a buffer to capture logs
 	var buf bytes.Buffer
@@ -21,9 +20,7 @@ func TestLogger(t *testing.T) {
 	// Reset buffer and log levels after test
 	defer func() {
 		SetWriter(originalWriter)
-		for k, v := range originalLevels {
-			ComponentLevels[k] = v
-		}
+		maps.Copy(ComponentLevels, originalLevels)
 	}()
 
 	// Test different log levels

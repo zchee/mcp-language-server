@@ -44,9 +44,9 @@ func ApplyTextEdits(uri protocol.DocumentUri, edits []protocol.TextEdit) error {
 	lines := strings.Split(string(content), lineEnding)
 
 	// Check for overlapping edits
-	for i := 0; i < len(edits); i++ {
+	for i, edit1 := range edits {
 		for j := i + 1; j < len(edits); j++ {
-			if RangesOverlap(edits[i].Range, edits[j].Range) {
+			if RangesOverlap(edit1.Range, edits[j].Range) {
 				return fmt.Errorf("overlapping edits detected between edit %d and %d", i, j)
 			}
 		}

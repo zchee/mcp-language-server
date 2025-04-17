@@ -193,7 +193,7 @@ func (c *Client) handleMessages() {
 }
 
 // Call makes a request and waits for the response
-func (c *Client) Call(ctx context.Context, method string, params interface{}, result interface{}) error {
+func (c *Client) Call(ctx context.Context, method string, params any, result any) error {
 	id := c.nextID.Add(1)
 
 	lspLogger.Debug("Making call: method=%s id=%d", method, id)
@@ -249,7 +249,7 @@ func (c *Client) Call(ctx context.Context, method string, params interface{}, re
 }
 
 // Notify sends a notification (a request without an ID that doesn't expect a response)
-func (c *Client) Notify(ctx context.Context, method string, params interface{}) error {
+func (c *Client) Notify(ctx context.Context, method string, params any) error {
 	lspLogger.Debug("Sending notification: method=%s", method)
 
 	msg, err := NewNotification(method, params)
@@ -265,4 +265,4 @@ func (c *Client) Notify(ctx context.Context, method string, params interface{}) 
 }
 
 type NotificationHandler func(params json.RawMessage)
-type ServerRequestHandler func(params json.RawMessage) (interface{}, error)
+type ServerRequestHandler func(params json.RawMessage) (any, error)

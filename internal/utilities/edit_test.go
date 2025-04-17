@@ -19,7 +19,7 @@ type mockFileSystem struct {
 }
 
 // Setup mock file system functions
-func setupMockFileSystem(t *testing.T, mfs *mockFileSystem) func() {
+func setupMockFileSystem(_ *testing.T, mfs *mockFileSystem) func() {
 	// Save original functions
 	originalReadFile := osReadFile
 	originalWriteFile := osWriteFile
@@ -123,7 +123,7 @@ func (m mockFileInfo) Size() int64        { return m.size }
 func (m mockFileInfo) Mode() os.FileMode  { return m.mode }
 func (m mockFileInfo) ModTime() time.Time { return time.Unix(m.modTime, 0) }
 func (m mockFileInfo) IsDir() bool        { return m.isDir }
-func (m mockFileInfo) Sys() interface{}   { return nil }
+func (m mockFileInfo) Sys() any           { return nil }
 
 func TestRangesOverlap(t *testing.T) {
 	tests := []struct {

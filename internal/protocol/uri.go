@@ -107,8 +107,7 @@ func filename(uri DocumentUri) (string, error) {
 	// avoids the allocation of a net.URL.
 	if strings.HasPrefix(string(uri), "file:///") {
 		rest := string(uri)[len("file://"):] // leave one slash
-		for i := 0; i < len(rest); i++ {
-			b := rest[i]
+		for _, b := range []byte(rest) {
 			// Reject these cases:
 			if b < ' ' || b == 0x7f || // control character
 				b == '%' || b == '+' || // URI escape

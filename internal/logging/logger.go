@@ -114,8 +114,7 @@ func init() {
 
 	// Allow overriding levels for specific components
 	if compLevels := os.Getenv("LOG_COMPONENT_LEVELS"); compLevels != "" {
-		parts := strings.Split(compLevels, ",")
-		for _, part := range parts {
+		for _, part := range strings.SplitN(compLevels, ",", -1) {
 			compAndLevel := strings.Split(part, ":")
 			if len(compAndLevel) != 2 {
 				continue
@@ -159,11 +158,11 @@ func init() {
 
 // Logger is the interface for component-specific logging
 type Logger interface {
-	Debug(format string, v ...interface{})
-	Info(format string, v ...interface{})
-	Warn(format string, v ...interface{})
-	Error(format string, v ...interface{})
-	Fatal(format string, v ...interface{})
+	Debug(format string, v ...any)
+	Info(format string, v ...any)
+	Warn(format string, v ...any)
+	Error(format string, v ...any)
+	Fatal(format string, v ...any)
 	IsLevelEnabled(level LogLevel) bool
 }
 
@@ -192,7 +191,7 @@ func (l *ComponentLogger) IsLevelEnabled(level LogLevel) bool {
 }
 
 // log logs a message at the specified level if it meets the threshold
-func (l *ComponentLogger) log(level LogLevel, format string, v ...interface{}) {
+func (l *ComponentLogger) log(level LogLevel, format string, v ...any) {
 	if !l.IsLevelEnabled(level) {
 		return
 	}
@@ -213,27 +212,27 @@ func (l *ComponentLogger) log(level LogLevel, format string, v ...interface{}) {
 }
 
 // Debug logs a debug message
-func (l *ComponentLogger) Debug(format string, v ...interface{}) {
+func (l *ComponentLogger) Debug(format string, v ...any) {
 	l.log(LevelDebug, format, v...)
 }
 
 // Info logs an info message
-func (l *ComponentLogger) Info(format string, v ...interface{}) {
+func (l *ComponentLogger) Info(format string, v ...any) {
 	l.log(LevelInfo, format, v...)
 }
 
 // Warn logs a warning message
-func (l *ComponentLogger) Warn(format string, v ...interface{}) {
+func (l *ComponentLogger) Warn(format string, v ...any) {
 	l.log(LevelWarn, format, v...)
 }
 
 // Error logs an error message
-func (l *ComponentLogger) Error(format string, v ...interface{}) {
+func (l *ComponentLogger) Error(format string, v ...any) {
 	l.log(LevelError, format, v...)
 }
 
 // Fatal logs a fatal message and exits
-func (l *ComponentLogger) Fatal(format string, v ...interface{}) {
+func (l *ComponentLogger) Fatal(format string, v ...any) {
 	l.log(LevelFatal, format, v...)
 	os.Exit(1)
 }

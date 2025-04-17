@@ -20,11 +20,11 @@ func RegisterFileWatchHandler(handler FileWatchHandler) {
 
 // Requests
 
-func HandleWorkspaceConfiguration(params json.RawMessage) (interface{}, error) {
-	return []map[string]interface{}{{}}, nil
+func HandleWorkspaceConfiguration(params json.RawMessage) (any, error) {
+	return []map[string]any{{}}, nil
 }
 
-func HandleRegisterCapability(params json.RawMessage) (interface{}, error) {
+func HandleRegisterCapability(params json.RawMessage) (any, error) {
 	var registerParams protocol.RegistrationParams
 	if err := json.Unmarshal(params, &registerParams); err != nil {
 		lspLogger.Error("Error unmarshaling registration params: %v", err)
@@ -60,7 +60,7 @@ func HandleRegisterCapability(params json.RawMessage) (interface{}, error) {
 	return nil, nil
 }
 
-func HandleApplyEdit(params json.RawMessage) (interface{}, error) {
+func HandleApplyEdit(params json.RawMessage) (any, error) {
 	var workspaceEdit protocol.ApplyWorkspaceEditParams
 	if err := json.Unmarshal(params, &workspaceEdit); err != nil {
 		return protocol.ApplyWorkspaceEditResult{Applied: false}, err

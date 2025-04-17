@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -220,7 +221,7 @@ func genStructs(model *Model) {
 		out.WriteString(lspLink(model, camelCase(s.Name)))
 		fmt.Fprintf(out, "type %s struct {%s\n", nm, linex(s.Line))
 		// for gpls compatibilitye, embed most extensions, but expand the rest some day
-		props := append([]NameType{}, s.Properties...)
+		props := slices.Clone(s.Properties)
 		if s.Name == "SymbolInformation" { // but expand this one
 			for _, ex := range s.Extends {
 				fmt.Fprintf(out, "\t// extends %s\n", ex.Name)

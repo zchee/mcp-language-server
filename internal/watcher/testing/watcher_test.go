@@ -408,7 +408,7 @@ func TestRapidChangesDebouncing(t *testing.T) {
 		mockClient.ResetEvents()
 
 		// Make multiple rapid changes
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			err := os.WriteFile(filePath, []byte("Content update"), 0644)
 			if err != nil {
 				t.Fatalf("Failed to modify file: %v", err)
