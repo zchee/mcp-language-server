@@ -3,6 +3,9 @@ mcp-language-server
 
 # Test output
 test-output/
+*.diff
 
 # Temporary files
 *~
+
+CLAUDE.md
