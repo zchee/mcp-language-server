@@ -430,8 +430,8 @@ func (c *Client) PrepareRename(ctx context.Context, params protocol.PrepareRenam
 
 // ExecuteCommand sends a workspace/executeCommand request to the LSP server.
 // A request send from the client to the server to execute a command. The request might return a workspace edit which the client will apply to the workspace.
-func (c *Client) ExecuteCommand(ctx context.Context, params protocol.ExecuteCommandParams) (interface{}, error) {
-	var result interface{}
+func (c *Client) ExecuteCommand(ctx context.Context, params protocol.ExecuteCommandParams) (any, error) {
+	var result any
 	err := c.Call(ctx, "workspace/executeCommand", params, &result)
 	return result, err
 }

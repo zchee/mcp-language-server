@@ -1,0 +1,25 @@
+===
+/TEST_OUTPUT/workspace/main.go
+Location: Line 8, Column 2
+Message: unreachable code
+Source: unreachable
+Code: default
+===
+ 6|func FooBar() string {
+ 7|	return "Hello, World!"
+ 8|	fmt.Println("Unreachable code") // This is unreachable code
+ 9|}
+
+
+===
+/TEST_OUTPUT/workspace/main.go
+Location: Line 9, Column 1
+Message: missing return
+Source: compiler
+Code: MissingReturn
+===
+ 6|func FooBar() string {
+ 7|	return "Hello, World!"
+ 8|	fmt.Println("Unreachable code") // This is unreachable code
+ 9|}
+

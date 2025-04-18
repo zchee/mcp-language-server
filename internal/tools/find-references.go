@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
@@ -15,12 +16,12 @@ func FindReferences(ctx context.Context, client *lsp.Client, symbolName string, 
 		Query: symbolName,
 	})
 	if err != nil {
-		return "", fmt.Errorf("Failed to fetch symbol: %v", err)
+		return "", fmt.Errorf("failed to fetch symbol: %v", err)
 	}
 
 	results, err := symbolResult.Results()
 	if err != nil {
-		return "", fmt.Errorf("Failed to parse results: %v", err)
+		return "", fmt.Errorf("failed to parse results: %v", err)
 	}
 
 	var allReferences []string
@@ -47,7 +48,7 @@ func FindReferences(ctx context.Context, client *lsp.Client, symbolName string, 
 
 		refs, err := client.References(ctx, refsParams)
 		if err != nil {
-			return "", fmt.Errorf("Failed to get references: %v", err)
+			return "", fmt.Errorf("failed to get references: %v", err)
 		}
 
 		// Group references by file
@@ -56,41 +57,51 @@ func FindReferences(ctx context.Context, client *lsp.Client, symbolName string, 
 			refsByFile[ref.URI] = append(refsByFile[ref.URI], ref)
 		}
 
-		// Process each file's references
-		for uri, fileRefs := range refsByFile {
+		// Get sorted list of URIs
+		uris := make([]string, 0, len(refsByFile))
+		for uri := range refsByFile {
+			uris = append(uris, string(uri))
+		}
+		sort.Strings(uris)
+
+		// Process each file's references in sorted order
+		for _, uriStr := range uris {
+			uri := protocol.DocumentUri(uriStr)
+			fileRefs := refsByFile[uri]
+
 			// Format file header similarly to ReadDefinition style
-			fileInfo := fmt.Sprintf("\n%s\nFile: %s\nReferences in File: %d\n%s\n",
-				strings.Repeat("=", 60),
-				strings.TrimPrefix(string(uri), "file://"),
+			fileInfo := fmt.Sprintf("%s\nFile: %s\nReferences in File: %d\n%s\n",
+				strings.Repeat("=", 3),
+				strings.TrimPrefix(uriStr, "file://"),
 				len(fileRefs),
-				strings.Repeat("=", 60))
+				strings.Repeat("=", 3))
 			allReferences = append(allReferences, fileInfo)
 
 			for _, ref := range fileRefs {
 				// Use GetFullDefinition but with a smaller context window
-				snippet, _, err := GetFullDefinition(ctx, client, ref)
+				snippet, snippetLocation, err := GetFullDefinition(ctx, client, ref)
 				if err != nil {
 					continue
 				}
 
 				if showLineNumbers {
-					snippet = addLineNumbers(snippet, int(ref.Range.Start.Line)+1)
+					snippet = addLineNumbers(snippet, int(snippetLocation.Range.Start.Line)+1)
 				}
 
 				// Format reference location info
-				refInfo := fmt.Sprintf("Reference at Line %d, Column %d:\n%s\n%s\n",
+				refInfo := fmt.Sprintf("Reference at Line %d, Column %d:\n%s\n",
 					ref.Range.Start.Line+1,
 					ref.Range.Start.Character+1,
-					strings.Repeat("-", 40),
 					snippet)
 
 				allReferences = append(allReferences, refInfo)
 			}
 		}
+
 	}
 
 	if len(allReferences) == 0 {
-		banner := strings.Repeat("=", 80) + "\n"
+		banner := strings.Repeat("=", 3) + "\n"
 		return fmt.Sprintf("%sNo references found for symbol: %s\n%s",
 			banner, symbolName, banner), nil
 	}

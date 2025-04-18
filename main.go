@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -12,13 +11,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/isaacphi/mcp-language-server/internal/logging"
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
 	"github.com/isaacphi/mcp-language-server/internal/watcher"
 	"github.com/metoro-io/mcp-golang"
 	"github.com/metoro-io/mcp-golang/transport/stdio"
 )
 
-var debug = os.Getenv("DEBUG") != ""
+// Create a logger for the core component
+var coreLogger = logging.NewLogger(logging.Core)
 
 type config struct {
 	workspaceDir string
@@ -97,9 +98,7 @@ func (s *server) initializeLSP() error {
 		return fmt.Errorf("initialize failed: %v", err)
 	}
 
-	if debug {
-		log.Printf("Server capabilities: %+v\n\n", initResult.Capabilities)
-	}
+	coreLogger.Debug("Server capabilities: %+v", initResult.Capabilities)
 
 	go s.workspaceWatcher.WatchWorkspace(s.ctx, s.config.workspaceDir)
 	return client.WaitForServerReady(s.ctx)
@@ -120,18 +119,20 @@ func (s *server) start() error {
 }
 
 func main() {
+	coreLogger.Info("MCP Language Server starting")
+
 	done := make(chan struct{})
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	config, err := parseConfig()
 	if err != nil {
-		log.Fatal(err)
+		coreLogger.Fatal("%v", err)
 	}
 
 	server, err := newServer(config)
 	if err != nil {
-		log.Fatal(err)
+		coreLogger.Fatal("%v", err)
 	}
 
 	// Parent process monitoring channel
@@ -141,9 +142,7 @@ func main() {
 	// Claude desktop does not properly kill child processes for MCP servers
 	go func() {
 		ppid := os.Getppid()
-		if debug {
-			log.Printf("Monitoring parent process: %d", ppid)
-		}
+		coreLogger.Debug("Monitoring parent process: %d", ppid)
 
 		ticker := time.NewTicker(100 * time.Millisecond)
 		defer ticker.Stop()
@@ -153,7 +152,7 @@ func main() {
 			case <-ticker.C:
 				currentPpid := os.Getppid()
 				if currentPpid != ppid && (currentPpid == 1 || ppid == 1) {
-					log.Printf("Parent process %d terminated (current ppid: %d), initiating shutdown", ppid, currentPpid)
+					coreLogger.Info("Parent process %d terminated (current ppid: %d), initiating shutdown", ppid, currentPpid)
 					close(parentDeath)
 					return
 				}
@@ -167,49 +166,66 @@ func main() {
 	go func() {
 		select {
 		case sig := <-sigChan:
-			log.Printf("Received signal %v in PID: %d", sig, os.Getpid())
+			coreLogger.Info("Received signal %v in PID: %d", sig, os.Getpid())
 			cleanup(server, done)
 		case <-parentDeath:
-			log.Printf("Parent death detected, initiating shutdown")
+			coreLogger.Info("Parent death detected, initiating shutdown")
 			cleanup(server, done)
 		}
 	}()
 
 	if err := server.start(); err != nil {
-		log.Printf("Server error: %v", err)
+		coreLogger.Error("Server error: %v", err)
 		cleanup(server, done)
 		os.Exit(1)
 	}
 
 	<-done
-	log.Printf("Server shutdown complete for PID: %d", os.Getpid())
+	coreLogger.Info("Server shutdown complete for PID: %d", os.Getpid())
 	os.Exit(0)
 }
 
 func cleanup(s *server, done chan struct{}) {
-	log.Printf("Cleanup initiated for PID: %d", os.Getpid())
+	coreLogger.Info("Cleanup initiated for PID: %d", os.Getpid())
 
 	// Create a context with timeout for shutdown operations
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if s.lspClient != nil {
-		log.Printf("Closing open files")
+		coreLogger.Info("Closing open files")
 		s.lspClient.CloseAllFiles(ctx)
 
-		log.Printf("Sending shutdown request")
-		if err := s.lspClient.Shutdown(ctx); err != nil {
-			log.Printf("Shutdown request failed: %v", err)
+		// Create a shorter timeout context for the shutdown request
+		shutdownCtx, shutdownCancel := context.WithTimeout(ctx, 500*time.Millisecond)
+		defer shutdownCancel()
+
+		// Run shutdown in a goroutine with timeout to avoid blocking if LSP doesn't respond
+		shutdownDone := make(chan struct{})
+		go func() {
+			coreLogger.Info("Sending shutdown request")
+			if err := s.lspClient.Shutdown(shutdownCtx); err != nil {
+				coreLogger.Error("Shutdown request failed: %v", err)
+			}
+			close(shutdownDone)
+		}()
+
+		// Wait for shutdown with timeout
+		select {
+		case <-shutdownDone:
+			coreLogger.Info("Shutdown request completed")
+		case <-time.After(1 * time.Second):
+			coreLogger.Warn("Shutdown request timed out, proceeding with exit")
 		}
 
-		log.Printf("Sending exit notification")
+		coreLogger.Info("Sending exit notification")
 		if err := s.lspClient.Exit(ctx); err != nil {
-			log.Printf("Exit notification failed: %v", err)
+			coreLogger.Error("Exit notification failed: %v", err)
 		}
 
-		log.Printf("Closing LSP client")
+		coreLogger.Info("Closing LSP client")
 		if err := s.lspClient.Close(); err != nil {
-			log.Printf("Failed to close LSP client: %v", err)
+			coreLogger.Error("Failed to close LSP client: %v", err)
 		}
 	}
 
@@ -220,5 +236,5 @@ func cleanup(s *server, done chan struct{}) {
 		close(done)
 	}
 
-	log.Printf("Cleanup completed for PID: %d", os.Getpid())
+	coreLogger.Info("Cleanup completed for PID: %d", os.Getpid())
 }

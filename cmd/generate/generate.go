@@ -35,7 +35,7 @@ func generateDoc(out *bytes.Buffer, doc string) {
 		return
 	}
 	var list bool
-	for _, line := range strings.Split(doc, "\n") {
+	for _, line := range strings.SplitN(doc, "\n", -1) {
 		// Lists in metaModel.json start with a dash.
 		// To make a go doc list they have to be preceded
 		// by a blank line, and indented.

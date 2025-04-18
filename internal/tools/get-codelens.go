@@ -40,7 +40,7 @@ func GetCodeLens(ctx context.Context, client *lsp.Client, filePath string) (stri
 	// Format the code lens results
 	var output strings.Builder
 	output.WriteString(fmt.Sprintf("Code Lens results for %s:\n", filePath))
-	output.WriteString(strings.Repeat("=", 80) + "\n\n")
+	output.WriteString(strings.Repeat("=", 3) + "\n\n")
 
 	for i, lens := range codeLensResult {
 		output.WriteString(fmt.Sprintf("[%d] Location: Lines %d-%d\n",

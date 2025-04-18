@@ -38,14 +38,17 @@ type ExecuteCodeLensArgs struct {
 }
 
 func (s *server) registerTools() error {
+	coreLogger.Debug("Registering MCP tools")
 
 	err := s.mcpServer.RegisterTool(
 		"apply_text_edit",
 		"Apply multiple text edits to a file.",
 		func(args ApplyTextEditArgs) (*mcp_golang.ToolResponse, error) {
+			coreLogger.Debug("Executing apply_text_edit for file: %s", args.FilePath)
 			response, err := tools.ApplyTextEdits(s.ctx, s.lspClient, args.FilePath, args.Edits)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to apply edits: %v", err)
+				coreLogger.Error("Failed to apply edits: %v", err)
+				return nil, fmt.Errorf("failed to apply edits: %v", err)
 			}
 			return mcp_golang.NewToolResponse(mcp_golang.NewTextContent(response)), nil
 		})
@@ -57,9 +60,11 @@ func (s *server) registerTools() error {
 		"read_definition",
 		"Read the source code definition of a symbol (function, type, constant, etc.) from the codebase. Returns the complete implementation code where the symbol is defined.",
 		func(args ReadDefinitionArgs) (*mcp_golang.ToolResponse, error) {
+			coreLogger.Debug("Executing read_definition for symbol: %s", args.SymbolName)
 			text, err := tools.ReadDefinition(s.ctx, s.lspClient, args.SymbolName, args.ShowLineNumbers)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get definition: %v", err)
+				coreLogger.Error("Failed to get definition: %v", err)
+				return nil, fmt.Errorf("failed to get definition: %v", err)
 			}
 			return mcp_golang.NewToolResponse(mcp_golang.NewTextContent(text)), nil
 		})
@@ -71,9 +76,11 @@ func (s *server) registerTools() error {
 		"find_references",
 		"Find all usages and references of a symbol throughout the codebase. Returns a list of all files and locations where the symbol appears.",
 		func(args FindReferencesArgs) (*mcp_golang.ToolResponse, error) {
+			coreLogger.Debug("Executing find_references for symbol: %s", args.SymbolName)
 			text, err := tools.FindReferences(s.ctx, s.lspClient, args.SymbolName, args.ShowLineNumbers)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to find references: %v", err)
+				coreLogger.Error("Failed to find references: %v", err)
+				return nil, fmt.Errorf("failed to find references: %v", err)
 			}
 			return mcp_golang.NewToolResponse(mcp_golang.NewTextContent(text)), nil
 		})
@@ -85,9 +92,11 @@ func (s *server) registerTools() error {
 		"get_diagnostics",
 		"Get diagnostic information for a specific file from the language server.",
 		func(args GetDiagnosticsArgs) (*mcp_golang.ToolResponse, error) {
+			coreLogger.Debug("Executing get_diagnostics for file: %s", args.FilePath)
 			text, err := tools.GetDiagnosticsForFile(s.ctx, s.lspClient, args.FilePath, args.IncludeContext, args.ShowLineNumbers)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get diagnostics: %v", err)
+				coreLogger.Error("Failed to get diagnostics: %v", err)
+				return nil, fmt.Errorf("failed to get diagnostics: %v", err)
 			}
 			return mcp_golang.NewToolResponse(mcp_golang.NewTextContent(text)), nil
 		},
@@ -100,9 +109,11 @@ func (s *server) registerTools() error {
 		"get_codelens",
 		"Get code lens hints for a given file from the language server.",
 		func(args GetCodeLensArgs) (*mcp_golang.ToolResponse, error) {
+			coreLogger.Debug("Executing get_codelens for file: %s", args.FilePath)
 			text, err := tools.GetCodeLens(s.ctx, s.lspClient, args.FilePath)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get code lens: %v", err)
+				coreLogger.Error("Failed to get code lens: %v", err)
+				return nil, fmt.Errorf("failed to get code lens: %v", err)
 			}
 			return mcp_golang.NewToolResponse(mcp_golang.NewTextContent(text)), nil
 		},
@@ -115,9 +126,11 @@ func (s *server) registerTools() error {
 		"execute_codelens",
 		"Execute a code lens command for a given file and lens index.",
 		func(args ExecuteCodeLensArgs) (*mcp_golang.ToolResponse, error) {
+			coreLogger.Debug("Executing execute_codelens for file: %s index: %d", args.FilePath, args.Index)
 			text, err := tools.ExecuteCodeLens(s.ctx, s.lspClient, args.FilePath, args.Index)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to execute code lens: %v", err)
+				coreLogger.Error("Failed to execute code lens: %v", err)
+				return nil, fmt.Errorf("failed to execute code lens: %v", err)
 			}
 			return mcp_golang.NewToolResponse(mcp_golang.NewTextContent(text)), nil
 		},
@@ -126,5 +139,6 @@ func (s *server) registerTools() error {
 		return fmt.Errorf("failed to register tool: %v", err)
 	}
 
+	coreLogger.Info("Successfully registered all MCP tools")
 	return nil
 }

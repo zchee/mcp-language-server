@@ -1,5 +1,10 @@
 # MCP Language Server
 
+[![Go Tests](https://github.com/isaacphi/mcp-language-server/actions/workflows/go.yml/badge.svg)](https://github.com/isaacphi/mcp-language-server/actions/workflows/go.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/isaacphi/mcp-language-server)](https://goreportcard.com/report/github.com/isaacphi/mcp-language-server)
+[![GoDoc](https://pkg.go.dev/badge/github.com/isaacphi/mcp-language-server)](https://pkg.go.dev/github.com/isaacphi/mcp-language-server)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/isaacphi/mcp-language-server)](https://github.com/isaacphi/mcp-language-server/blob/main/go.mod)
+
 A Model Context Protocol (MCP) server that runs a language server and provides tools for communicating with it.
 
 ## Motivation
@@ -78,7 +83,7 @@ Add something like the following configuration to your Claude Desktop settings (
         "--stdio"
       ],
       "env": {
-        "DEBUG": "1"
+        "LOG_LEVEL": "INFO"
       }
     }
   }
@@ -91,7 +96,7 @@ Replace:
 - `/opt/homebrew/bin/pyright-langserver` with the path to your language server (found using `which` command e.g. `which pyright-langserver`)
 - Any aruments after `--` are sent as arguments to your language server.
 - Any env variables are passed on to the language server. Some may be necessary for you language server. For example, `gopls` required `GOPATH` and `GOCACHE` in order for me to get it working properly.
-- `DEBUG=1` is optional. See below.
+- `LOG_LEVEL` is optional. See below.
 
 ## Development
 
@@ -114,6 +119,18 @@ Build:
 go build
 ```
 
+Run tests:
+
+```bash
+go test ./...
+```
+
+Update test snapshots:
+
+```bash
+UPDATE_SNAPSHOTS=true go test ./integrationtests/...
+```
+
 Configure your Claude Desktop (or similar) to use the local binary:
 
 ```json
@@ -128,7 +145,7 @@ Configure your Claude Desktop (or similar) to use the local binary:
         "/path/to/language/server"
       ],
       "env": {
-        "DEBUG": "1"
+        "LOG_LEVEL": "DEBUG"
       }
     }
   }
@@ -143,11 +160,12 @@ Include
 
 ```
 env: {
-  "DEBUG": 1
+  "LOG_LEVEL": "DEBUG",
+  "LOG_COMPONENT_LEVELS": "wire:DEBUG"
 }
 ```
 
-To get detailed LSP and application logs. Please include as much information as possible when opening issues.
+To get detailed LSP and application logs. Setting `LOG_LEVEL` to DEBUG enables verbose logging for all components. Adding `LOG_COMPONENT_LEVELS` with `wire:DEBUG` shows raw LSP JSON messages. Please include as much information as possible when opening issues.
 
 The following features are on my radar:
 
@@ -162,3 +180,4 @@ The following features are on my radar:
 - [ ] Add LSP server configuration options and presets for common languages
 - [ ] Make a more consistent and scalable API for tools (pagination, etc.)
 - [ ] Create tools at a higher level of abstraction, combining diagnostics, code lens, hover, and code actions when reading definitions or references.
+

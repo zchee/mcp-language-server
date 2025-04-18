@@ -3,7 +3,6 @@ package tools
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
@@ -15,12 +14,12 @@ func ReadDefinition(ctx context.Context, client *lsp.Client, symbolName string, 
 		Query: symbolName,
 	})
 	if err != nil {
-		return "", fmt.Errorf("Failed to fetch symbol: %v", err)
+		return "", fmt.Errorf("failed to fetch symbol: %v", err)
 	}
 
 	results, err := symbolResult.Results()
 	if err != nil {
-		return "", fmt.Errorf("Failed to parse results: %v", err)
+		return "", fmt.Errorf("failed to parse results: %v", err)
 	}
 
 	var definitions []string
@@ -37,11 +36,24 @@ func ReadDefinition(ctx context.Context, client *lsp.Client, symbolName string, 
 			if v.ContainerName != "" {
 				container = fmt.Sprintf("Container Name: %s\n", v.ContainerName)
 			}
-			if v.Kind == protocol.Method && strings.HasSuffix(symbol.GetName(), symbolName) {
-				break
-			}
-			if symbol.GetName() != symbolName {
-				continue
+
+			// Handle different matching strategies based on the search term
+			if strings.Contains(symbolName, ".") {
+				// For qualified names like "Type.Method", require exact match
+				if symbol.GetName() != symbolName {
+					continue
+				}
+			} else {
+				// For unqualified names like "Method"
+				if v.Kind == protocol.Method {
+					// For methods, only match if the method name matches exactly Type.symbolName
+					if !strings.HasSuffix(symbol.GetName(), "."+symbolName) {
+						continue
+					}
+				} else if symbol.GetName() != symbolName {
+					// For non-methods, exact match only
+					continue
+				}
 			}
 		default:
 			if symbol.GetName() != symbolName {
@@ -49,10 +61,10 @@ func ReadDefinition(ctx context.Context, client *lsp.Client, symbolName string, 
 			}
 		}
 
-		log.Printf("Symbol: %s\n", symbol.GetName())
+		toolsLogger.Debug("Found symbol: %s", symbol.GetName())
 		loc := symbol.GetLocation()
 
-		banner := strings.Repeat("=", 80) + "\n"
+		banner := strings.Repeat("=", 3) + "\n"
 		definition, loc, err := GetFullDefinition(ctx, client, loc)
 		locationInfo := fmt.Sprintf(
 			"Symbol: %s\n"+
@@ -68,10 +80,10 @@ func ReadDefinition(ctx context.Context, client *lsp.Client, symbolName string, 
 			loc.Range.Start.Character+1,
 			loc.Range.End.Line+1,
 			loc.Range.End.Character+1,
-			strings.Repeat("=", 80))
+			strings.Repeat("=", 3))
 
 		if err != nil {
-			log.Printf("Error getting definition: %v\n", err)
+			toolsLogger.Error("Error getting definition: %v", err)
 			continue
 		}
 

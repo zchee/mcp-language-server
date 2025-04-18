@@ -6,24 +6,28 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
-	"os"
 	"strings"
+
+	"github.com/isaacphi/mcp-language-server/internal/logging"
 )
 
-var debug = os.Getenv("DEBUG") != ""
+// Create component-specific loggers
+var lspLogger = logging.NewLogger(logging.LSP)
+var wireLogger = logging.NewLogger(logging.LSPWire)
+var processLogger = logging.NewLogger(logging.LSPProcess)
 
-// Write writes an LSP message to the given writer
+// WriteMessage writes an LSP message to the given writer
 func WriteMessage(w io.Writer, msg *Message) error {
 	data, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 
-	if debug {
-		log.Printf("%v", msg.Method)
-		log.Printf("-> Sending: %s", string(data))
-	}
+	// High-level operation log
+	lspLogger.Debug("Sending message: method=%s id=%d", msg.Method, msg.ID)
+
+	// Wire protocol log (more detailed)
+	wireLogger.Debug("-> Sending: %s", string(data))
 
 	_, err = fmt.Fprintf(w, "Content-Length: %d\r\n\r\n", len(data))
 	if err != nil {
@@ -49,13 +53,11 @@ func ReadMessage(r *bufio.Reader) (*Message, error) {
 		}
 		line = strings.TrimSpace(line)
 
-		if debug {
-			log.Printf("<- Header: %s", line)
-		}
-
 		if line == "" {
 			break // End of headers
 		}
+
+		wireLogger.Debug("<- Header: %s", line)
 
 		if strings.HasPrefix(line, "Content-Length: ") {
 			_, err := fmt.Sscanf(line, "Content-Length: %d", &contentLength)
@@ -65,9 +67,7 @@ func ReadMessage(r *bufio.Reader) (*Message, error) {
 		}
 	}
 
-	if debug {
-		log.Printf("<- Reading content with length: %d", contentLength)
-	}
+	wireLogger.Debug("<- Reading content with length: %d", contentLength)
 
 	// Read content
 	content := make([]byte, contentLength)
@@ -76,14 +76,21 @@ func ReadMessage(r *bufio.Reader) (*Message, error) {
 		return nil, fmt.Errorf("failed to read content: %w", err)
 	}
 
-	if debug {
-		log.Printf("<- Received: %s", string(content))
-	}
+	wireLogger.Debug("<- Received: %s", string(content))
 
 	// Parse message
 	var msg Message
 	if err := json.Unmarshal(content, &msg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal message: %w", err)
+	}
+
+	// Log higher-level information about the message type
+	if msg.Method != "" && msg.ID != 0 {
+		lspLogger.Debug("Received request from server: method=%s id=%d", msg.Method, msg.ID)
+	} else if msg.Method != "" {
+		lspLogger.Debug("Received notification: method=%s", msg.Method)
+	} else if msg.ID != 0 {
+		lspLogger.Debug("Received response for ID: %d", msg.ID)
 	}
 
 	return &msg, nil
@@ -94,18 +101,17 @@ func (c *Client) handleMessages() {
 	for {
 		msg, err := ReadMessage(c.stdout)
 		if err != nil {
-			if debug {
-				log.Printf("Error reading message: %v", err)
+			// Check if this is due to normal shutdown (EOF when closing connection)
+			if strings.Contains(err.Error(), "EOF") {
+				lspLogger.Info("LSP connection closed (EOF)")
+			} else {
+				lspLogger.Error("Error reading message: %v", err)
 			}
 			return
 		}
 
 		// Handle server->client request (has both Method and ID)
 		if msg.Method != "" && msg.ID != 0 {
-			if debug {
-				log.Printf("Received request from server: method=%s id=%d", msg.Method, msg.ID)
-			}
-
 			response := &Message{
 				JSONRPC: "2.0",
 				ID:      msg.ID,
@@ -117,8 +123,10 @@ func (c *Client) handleMessages() {
 			c.serverHandlersMu.RUnlock()
 
 			if ok {
+				lspLogger.Debug("Processing server request: method=%s id=%d", msg.Method, msg.ID)
 				result, err := handler(msg.Params)
 				if err != nil {
+					lspLogger.Error("Error handling server request %s: %v", msg.Method, err)
 					response.Error = &ResponseError{
 						Code:    -32603,
 						Message: err.Error(),
@@ -126,6 +134,7 @@ func (c *Client) handleMessages() {
 				} else {
 					rawJSON, err := json.Marshal(result)
 					if err != nil {
+						lspLogger.Error("Failed to marshal response for %s: %v", msg.Method, err)
 						response.Error = &ResponseError{
 							Code:    -32603,
 							Message: fmt.Sprintf("failed to marshal response: %v", err),
@@ -135,6 +144,7 @@ func (c *Client) handleMessages() {
 					}
 				}
 			} else {
+				lspLogger.Warn("Method not found: %s", msg.Method)
 				response.Error = &ResponseError{
 					Code:    -32601,
 					Message: fmt.Sprintf("method not found: %s", msg.Method),
@@ -143,7 +153,7 @@ func (c *Client) handleMessages() {
 
 			// Send response back to server
 			if err := WriteMessage(c.stdin, response); err != nil {
-				log.Printf("Error sending response to server: %v", err)
+				lspLogger.Error("Error sending response to server: %v", err)
 			}
 
 			continue
@@ -156,12 +166,10 @@ func (c *Client) handleMessages() {
 			c.notificationMu.RUnlock()
 
 			if ok {
-				if debug {
-					log.Printf("Handling notification: %s", msg.Method)
-				}
+				lspLogger.Debug("Handling notification: %s", msg.Method)
 				go handler(msg.Params)
-			} else if debug {
-				log.Printf("No handler for notification: %s", msg.Method)
+			} else {
+				lspLogger.Debug("No handler for notification: %s", msg.Method)
 			}
 			continue
 		}
@@ -173,25 +181,21 @@ func (c *Client) handleMessages() {
 			c.handlersMu.RUnlock()
 
 			if ok {
-				if debug {
-					log.Printf("Sending response for ID %d to handler", msg.ID)
-				}
+				lspLogger.Debug("Sending response for ID %d to handler", msg.ID)
 				ch <- msg
 				close(ch)
-			} else if debug {
-				log.Printf("No handler for response ID: %d", msg.ID)
+			} else {
+				lspLogger.Debug("No handler for response ID: %d", msg.ID)
 			}
 		}
 	}
 }
 
 // Call makes a request and waits for the response
-func (c *Client) Call(ctx context.Context, method string, params interface{}, result interface{}) error {
+func (c *Client) Call(ctx context.Context, method string, params any, result any) error {
 	id := c.nextID.Add(1)
 
-	if debug {
-		log.Printf("Making call: method=%s id=%d", method, id)
-	}
+	lspLogger.Debug("Making call: method=%s id=%d", method, id)
 
 	msg, err := NewRequest(id, method, params)
 	if err != nil {
@@ -215,18 +219,15 @@ func (c *Client) Call(ctx context.Context, method string, params interface{}, re
 		return fmt.Errorf("failed to send request: %w", err)
 	}
 
-	if debug {
-		log.Printf("Waiting for response to request ID: %d", id)
-	}
+	lspLogger.Debug("Waiting for response to request ID: %d", id)
 
 	// Wait for response
 	resp := <-ch
 
-	if debug {
-		log.Printf("Received response for request ID: %d", id)
-	}
+	lspLogger.Debug("Received response for request ID: %d", id)
 
 	if resp.Error != nil {
+		lspLogger.Error("Request failed: %s (code: %d)", resp.Error.Message, resp.Error.Code)
 		return fmt.Errorf("request failed: %s (code: %d)", resp.Error.Message, resp.Error.Code)
 	}
 
@@ -238,6 +239,7 @@ func (c *Client) Call(ctx context.Context, method string, params interface{}, re
 		}
 		// Otherwise unmarshal into the provided type
 		if err := json.Unmarshal(resp.Result, result); err != nil {
+			lspLogger.Error("Failed to unmarshal result: %v", err)
 			return fmt.Errorf("failed to unmarshal result: %w", err)
 		}
 	}
@@ -246,10 +248,8 @@ func (c *Client) Call(ctx context.Context, method string, params interface{}, re
 }
 
 // Notify sends a notification (a request without an ID that doesn't expect a response)
-func (c *Client) Notify(ctx context.Context, method string, params interface{}) error {
-	if debug {
-		log.Printf("Sending notification: method=%s", method)
-	}
+func (c *Client) Notify(ctx context.Context, method string, params any) error {
+	lspLogger.Debug("Sending notification: method=%s", method)
 
 	msg, err := NewNotification(method, params)
 	if err != nil {
@@ -264,4 +264,4 @@ func (c *Client) Notify(ctx context.Context, method string, params interface{}) 
 }
 
 type NotificationHandler func(params json.RawMessage)
-type ServerRequestHandler func(params json.RawMessage) (interface{}, error)
+type ServerRequestHandler func(params json.RawMessage) (any, error)

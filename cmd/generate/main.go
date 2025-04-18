@@ -57,7 +57,11 @@ func processinline() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		defer os.RemoveAll(tmpdir) // ignore error
+		defer func() {
+			if err := os.RemoveAll(tmpdir); err != nil {
+				log.Printf("Failed to remove temporary directory: %v", err)
+			}
+		}()
 
 		// Clone the repository.
 		cmd := exec.Command("git", "clone", "--quiet", "--depth=1", "-c", "advice.detachedHead=false", vscodeRepo, "--branch="+lspGitRef, "--single-branch", tmpdir)
@@ -268,7 +272,7 @@ func (t *Type) UnmarshalJSON(data []byte) error {
 			Value *Type `json:"value"`
 		}
 		if err := json.Unmarshal(data, &x); err != nil {
-			return fmt.Errorf("Type.kind=map: %v", err)
+			return fmt.Errorf("Type.kind=map: %v", err) //lint:ignore ST1005 ignore
 		}
 		t.Key = x.Key
 		t.Value = x.Value
@@ -279,7 +283,7 @@ func (t *Type) UnmarshalJSON(data []byte) error {
 		}
 
 		if err := json.Unmarshal(data, &z); err != nil {
-			return fmt.Errorf("Type.kind=literal: %v", err)
+			return fmt.Errorf("Type.kind=literal: %v", err) //lint:ignore ST1005 ignore
 		}
 		t.Value = z.Value
 

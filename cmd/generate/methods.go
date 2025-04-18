@@ -51,8 +51,7 @@ func generateMethodForRequest(out *bytes.Buffer, r *Request) {
 	// Generate doc comment
 	fmt.Fprintf(out, "\n// %s\n", methodName+" sends a "+r.Method+" request to the LSP server.")
 	if r.Documentation != "" {
-		docLines := strings.Split(cleanDocComment(r.Documentation), "\n")
-		for _, line := range docLines {
+		for _, line := range strings.SplitN(cleanDocComment(r.Documentation), "\n", -1) {
 			fmt.Fprintf(out, "// %s\n", line)
 		}
 	}
@@ -110,8 +109,7 @@ func generateMethodForNotification(out *bytes.Buffer, n *Notification) {
 	// Generate doc comment
 	fmt.Fprintf(out, "\n// %s\n", methodName+" sends a "+n.Method+" notification to the LSP server.")
 	if n.Documentation != "" {
-		docLines := strings.Split(cleanDocComment(n.Documentation), "\n")
-		for _, line := range docLines {
+		for _, line := range strings.SplitN(cleanDocComment(n.Documentation), "\n", -1) {
 			fmt.Fprintf(out, "// %s\n", line)
 		}
 	}
