@@ -112,14 +112,14 @@ func TestFindReferences(t *testing.T) {
 
 // countFilesInResult counts the number of unique files mentioned in the result
 func countFilesInResult(result string) int {
-	fileMarker := "File: "
 	fileMap := make(map[string]bool)
 
-	lines := strings.Split(result, "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, fileMarker) {
-			filePath := strings.TrimPrefix(line, fileMarker)
-			fileMap[filePath] = true
+	// Any line containing "workspace" and ".go" is a file path
+	for line := range strings.SplitSeq(result, "\n") {
+		if strings.Contains(line, "workspace") && strings.Contains(line, ".go") {
+			if !strings.Contains(line, "References in File") {
+				fileMap[line] = true
+			}
 		}
 	}
 

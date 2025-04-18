@@ -70,7 +70,7 @@ func FindReferences(ctx context.Context, client *lsp.Client, symbolName string, 
 			fileRefs := refsByFile[uri]
 
 			// Format file header similarly to ReadDefinition style
-			fileInfo := fmt.Sprintf("\n%s\nFile: %s\nReferences in File: %d\n%s\n",
+			fileInfo := fmt.Sprintf("%s\nFile: %s\nReferences in File: %d\n%s\n",
 				strings.Repeat("=", 3),
 				strings.TrimPrefix(uriStr, "file://"),
 				len(fileRefs),
@@ -79,13 +79,13 @@ func FindReferences(ctx context.Context, client *lsp.Client, symbolName string, 
 
 			for _, ref := range fileRefs {
 				// Use GetFullDefinition but with a smaller context window
-				snippet, _, err := GetFullDefinition(ctx, client, ref)
+				snippet, snippetLocation, err := GetFullDefinition(ctx, client, ref)
 				if err != nil {
 					continue
 				}
 
 				if showLineNumbers {
-					snippet = addLineNumbers(snippet, int(ref.Range.Start.Line)+1)
+					snippet = addLineNumbers(snippet, int(snippetLocation.Range.Start.Line)+1)
 				}
 
 				// Format reference location info

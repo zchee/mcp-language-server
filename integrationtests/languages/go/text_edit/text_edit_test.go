@@ -103,7 +103,7 @@ func AnotherFunction() {
 				{
 					StartLine: 8,
 					EndLine:   8,
-					NewText:   `	fmt.Println("This is a test function")
+					NewText: `	fmt.Println("This is a test function")
 	fmt.Println("This is an inserted line")`,
 				},
 			},
@@ -139,7 +139,7 @@ func AnotherFunction() {
 			name: "Multiple edits in same file",
 			edits: []tools.TextEdit{
 				{
-					StartLine: 7, 
+					StartLine: 7,
 					EndLine:   7,
 					NewText:   `	fmt.Println("First modification")`,
 				},
@@ -279,8 +279,8 @@ func LastFunction() {
 			name: "Append to end of file",
 			edits: []tools.TextEdit{
 				{
-					StartLine: 16, // Last line of the file (the closing brace of LastFunction)
-					EndLine:   16,
+					StartLine: 15, // Last line of the file (the closing brace of LastFunction)
+					EndLine:   15,
 					NewText: `}
 
 // NewFunction is a new function at the end of the file

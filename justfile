@@ -10,7 +10,11 @@ build:
 install:
   go install
 
-# Generate schema
+# Format code
+fmt:
+  gofmt -w .
+
+# Generate LSP types and methods
 generate:
   go generate ./...
 
@@ -28,3 +32,7 @@ check:
 # Run tests
 test:
   go test ./...
+
+# Update snapshot tests
+snapshot:
+  UPDATE_SNAPSHOTS=true go test ./integrationtests/...
