@@ -13,19 +13,10 @@ import (
 	"github.com/isaacphi/mcp-language-server/internal/utilities"
 )
 
-type TextEditType string
-
-const (
-	Replace TextEditType = "replace"
-	Insert  TextEditType = "insert"
-	Delete  TextEditType = "delete"
-)
-
 type TextEdit struct {
-	Type      TextEditType `json:"type" jsonschema:"required,enum=replace|insert|delete,description=Type of edit operation (replace, insert, delete)"`
-	StartLine int          `json:"startLine" jsonschema:"required,description=Start line to replace, inclusive"`
-	EndLine   int          `json:"endLine" jsonschema:"required,description=End line to replace, inclusive"`
-	NewText   string       `json:"newText" jsonschema:"description=Replacement text. Leave blank to clear lines."`
+	StartLine int    `json:"startLine" jsonschema:"required,description=Start line to replace, inclusive"`
+	EndLine   int    `json:"endLine" jsonschema:"required,description=End line to replace, inclusive"`
+	NewText   string `json:"newText" jsonschema:"description=Replacement text. Replace with the new text. Leave blank to remove lines."`
 }
 
 func ApplyTextEdits(ctx context.Context, client *lsp.Client, filePath string, edits []TextEdit) (string, error) {
@@ -43,22 +34,13 @@ func ApplyTextEdits(ctx context.Context, client *lsp.Client, filePath string, ed
 	// Convert from input format to protocol.TextEdit
 	var textEdits []protocol.TextEdit
 	for _, edit := range edits {
+		// Get the range covering the requested lines
 		rng, err := getRange(edit.StartLine, edit.EndLine, filePath)
 		if err != nil {
 			return "", fmt.Errorf("invalid position: %v", err)
 		}
 
-		switch edit.Type {
-		case Insert:
-			// For insert, make it a zero-width range at the start position
-			rng.End = rng.Start
-		case Delete:
-			// For delete, ensure NewText is empty
-			edit.NewText = ""
-		case Replace:
-			// Replace uses the full range and NewText as-is
-		}
-
+		// Always do a replacement - this simplifies the model and makes behavior predictable
 		textEdits = append(textEdits, protocol.TextEdit{
 			Range:   rng,
 			NewText: edit.NewText,
@@ -78,7 +60,7 @@ func ApplyTextEdits(ctx context.Context, client *lsp.Client, filePath string, ed
 	return "Successfully applied text edits.\nWARNING: line numbers may have changed. Re-read code before applying additional edits.", nil
 }
 
-// getRange now handles EOF insertions and is more precise about character positions
+// getRange creates a protocol.Range that covers the specified start and end lines
 func getRange(startLine, endLine int, filePath string) (protocol.Range, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
@@ -133,14 +115,15 @@ func getRange(startLine, endLine int, filePath string) (protocol.Range, error) {
 		endIdx = len(lines) - 1
 	}
 
+	// Always use the full line range for consistency
 	return protocol.Range{
 		Start: protocol.Position{
 			Line:      uint32(startIdx),
-			Character: 0,
+			Character: 0, // Always start at beginning of line
 		},
 		End: protocol.Position{
 			Line:      uint32(endIdx),
-			Character: uint32(len(lines[endIdx])),
+			Character: uint32(len(lines[endIdx])), // Go to end of last line
 		},
 	}, nil
 }

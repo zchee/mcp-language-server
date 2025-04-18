@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/isaacphi/mcp-language-server/integrationtests/languages/common"
 	"github.com/isaacphi/mcp-language-server/integrationtests/languages/go/internal"
 	"github.com/isaacphi/mcp-language-server/internal/tools"
 )
@@ -48,78 +47,118 @@ func AnotherFunction() {
 	}
 
 	tests := []struct {
-		name         string
-		edits        []tools.TextEdit
-		snapshotName string
+		name          string
+		edits         []tools.TextEdit
+		verifications []func(t *testing.T, content string)
 	}{
 		{
 			name: "Replace single line",
 			edits: []tools.TextEdit{
 				{
-					Type:      tools.Replace,
 					StartLine: 7,
 					EndLine:   7,
 					NewText:   `	fmt.Println("Modified line")`,
 				},
 			},
-			snapshotName: "replace_single_line",
+			verifications: []func(t *testing.T, content string){
+				func(t *testing.T, content string) {
+					if !strings.Contains(content, `fmt.Println("Modified line")`) {
+						t.Errorf("Expected modified line not found in content")
+					}
+					if strings.Contains(content, `fmt.Println("Hello, world!")`) {
+						t.Errorf("Original line should have been replaced")
+					}
+				},
+			},
 		},
 		{
 			name: "Replace multiple lines",
 			edits: []tools.TextEdit{
 				{
-					Type:      tools.Replace,
 					StartLine: 6,
 					EndLine:   9,
 					NewText: `func TestFunction() {
-	fmt.Println("This is a completely modified function")
-	fmt.Println("With fewer lines")
-}`,
+		fmt.Println("This is a completely modified function")
+		fmt.Println("With fewer lines")
+	}`,
 				},
 			},
-			snapshotName: "replace_multiple_lines",
+			verifications: []func(t *testing.T, content string){
+				func(t *testing.T, content string) {
+					if !strings.Contains(content, `fmt.Println("This is a completely modified function")`) {
+						t.Errorf("Expected new function content not found")
+					}
+					if !strings.Contains(content, `fmt.Println("With fewer lines")`) {
+						t.Errorf("Expected new function content not found")
+					}
+					if strings.Contains(content, `fmt.Println("With multiple lines")`) {
+						t.Errorf("Original line should have been replaced")
+					}
+				},
+			},
 		},
 		{
-			name: "Insert line",
+			name: "Insert at a line (by replacing it and including original content)",
 			edits: []tools.TextEdit{
 				{
-					Type:      tools.Insert,
 					StartLine: 8,
 					EndLine:   8,
-					NewText:   `	fmt.Println("This is an inserted line")`,
+					NewText:   `	fmt.Println("This is a test function")
+	fmt.Println("This is an inserted line")`,
 				},
 			},
-			snapshotName: "insert_line",
+			verifications: []func(t *testing.T, content string){
+				func(t *testing.T, content string) {
+					if !strings.Contains(content, `fmt.Println("This is an inserted line")`) {
+						t.Errorf("Expected inserted line not found in content")
+					}
+					if !strings.Contains(content, `fmt.Println("This is a test function")`) {
+						t.Errorf("Original line should still be present in the content")
+					}
+				},
+			},
 		},
 		{
 			name: "Delete line",
 			edits: []tools.TextEdit{
 				{
-					Type:      tools.Delete,
 					StartLine: 8,
 					EndLine:   8,
 					NewText:   "",
 				},
 			},
-			snapshotName: "delete_line",
+			verifications: []func(t *testing.T, content string){
+				func(t *testing.T, content string) {
+					if count := strings.Count(content, `fmt.Println("This is a test function")`); count != 0 {
+						t.Errorf("Expected line to be deleted, but found %d occurrences", count)
+					}
+				},
+			},
 		},
 		{
 			name: "Multiple edits in same file",
 			edits: []tools.TextEdit{
 				{
-					Type:      tools.Replace,
-					StartLine: 7,
+					StartLine: 7, 
 					EndLine:   7,
 					NewText:   `	fmt.Println("First modification")`,
 				},
 				{
-					Type:      tools.Replace,
 					StartLine: 14,
 					EndLine:   14,
 					NewText:   `	fmt.Println("Second modification")`,
 				},
 			},
-			snapshotName: "multiple_edits",
+			verifications: []func(t *testing.T, content string){
+				func(t *testing.T, content string) {
+					if !strings.Contains(content, `fmt.Println("First modification")`) {
+						t.Errorf("First modification not found")
+					}
+					if !strings.Contains(content, `fmt.Println("Second modification")`) {
+						t.Errorf("Second modification not found")
+					}
+				},
+			},
 		},
 	}
 
@@ -142,8 +181,16 @@ func AnotherFunction() {
 				t.Errorf("Result does not contain success message: %s", result)
 			}
 
-			// Use snapshot testing to verify the text edit operation output
-			common.SnapshotTest(t, "go", "text_edit", tc.snapshotName, result)
+			// Read the file content after edits
+			content, err := suite.ReadFile(testFileName)
+			if err != nil {
+				t.Fatalf("Failed to read test file after edits: %v", err)
+			}
+
+			// Run all verification functions
+			for _, verify := range tc.verifications {
+				verify(t, content)
+			}
 		})
 	}
 }
@@ -183,46 +230,58 @@ func LastFunction() {
 	}
 
 	tests := []struct {
-		name         string
-		edits        []tools.TextEdit
-		snapshotName string
+		name          string
+		edits         []tools.TextEdit
+		verifications []func(t *testing.T, content string)
 	}{
 		{
 			name: "Edit empty function",
 			edits: []tools.TextEdit{
 				{
-					Type:      tools.Replace,
 					StartLine: 6,
 					EndLine:   7,
 					NewText: `func EmptyFunction() {
-	fmt.Println("No longer empty")
-}`,
+		fmt.Println("No longer empty")
+	}`,
 				},
 			},
-			snapshotName: "edit_empty_function",
+			verifications: []func(t *testing.T, content string){
+				func(t *testing.T, content string) {
+					if !strings.Contains(content, `fmt.Println("No longer empty")`) {
+						t.Errorf("Expected new function content not found")
+					}
+				},
+			},
 		},
 		{
 			name: "Edit single line function",
 			edits: []tools.TextEdit{
 				{
-					Type:      tools.Replace,
 					StartLine: 10,
 					EndLine:   10,
 					NewText: `func SingleLineFunction() { 
-	fmt.Println("Now a multi-line function") 
-}`,
+		fmt.Println("Now a multi-line function") 
+	}`,
 				},
 			},
-			snapshotName: "edit_single_line_function",
+			verifications: []func(t *testing.T, content string){
+				func(t *testing.T, content string) {
+					if !strings.Contains(content, `fmt.Println("Now a multi-line function")`) {
+						t.Errorf("Expected new function content not found")
+					}
+					if strings.Contains(content, `fmt.Println("Single line")`) {
+						t.Errorf("Original function should have been replaced")
+					}
+				},
+			},
 		},
 		{
 			name: "Append to end of file",
 			edits: []tools.TextEdit{
 				{
-					Type:      tools.Insert,
-					StartLine: 15,
-					EndLine:   15,
-					NewText: `
+					StartLine: 16, // Last line of the file (the closing brace of LastFunction)
+					EndLine:   16,
+					NewText: `}
 
 // NewFunction is a new function at the end of the file
 func NewFunction() {
@@ -230,7 +289,20 @@ func NewFunction() {
 }`,
 				},
 			},
-			snapshotName: "append_to_file",
+			verifications: []func(t *testing.T, content string){
+				func(t *testing.T, content string) {
+					if !strings.Contains(content, `NewFunction is a new function at the end of the file`) {
+						t.Errorf("Expected new function comment not found")
+					}
+					if !strings.Contains(content, `fmt.Println("This is a new function")`) {
+						t.Errorf("Expected new function content not found")
+					}
+					// Verify there's no syntax error with double closing braces
+					if strings.Contains(content, "}}") {
+						t.Errorf("Found syntax error with double closing braces at end of file")
+					}
+				},
+			},
 		},
 	}
 
@@ -253,8 +325,16 @@ func NewFunction() {
 				t.Errorf("Result does not contain success message: %s", result)
 			}
 
-			// Use snapshot testing to verify the text edit operation output
-			common.SnapshotTest(t, "go", "text_edit", tc.snapshotName, result)
+			// Read the file content after edits
+			content, err := suite.ReadFile(testFileName)
+			if err != nil {
+				t.Fatalf("Failed to read test file after edits: %v", err)
+			}
+
+			// Run all verification functions
+			for _, verify := range tc.verifications {
+				verify(t, content)
+			}
 		})
 	}
 }
