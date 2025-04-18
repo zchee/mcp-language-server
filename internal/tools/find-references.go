@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
@@ -56,12 +57,22 @@ func FindReferences(ctx context.Context, client *lsp.Client, symbolName string, 
 			refsByFile[ref.URI] = append(refsByFile[ref.URI], ref)
 		}
 
-		// Process each file's references
-		for uri, fileRefs := range refsByFile {
+		// Get sorted list of URIs
+		uris := make([]string, 0, len(refsByFile))
+		for uri := range refsByFile {
+			uris = append(uris, string(uri))
+		}
+		sort.Strings(uris)
+
+		// Process each file's references in sorted order
+		for _, uriStr := range uris {
+			uri := protocol.DocumentUri(uriStr)
+			fileRefs := refsByFile[uri]
+
 			// Format file header similarly to ReadDefinition style
 			fileInfo := fmt.Sprintf("\n%s\nFile: %s\nReferences in File: %d\n%s\n",
 				strings.Repeat("=", 3),
-				strings.TrimPrefix(string(uri), "file://"),
+				strings.TrimPrefix(uriStr, "file://"),
 				len(fileRefs),
 				strings.Repeat("=", 3))
 			allReferences = append(allReferences, fileInfo)
@@ -86,6 +97,7 @@ func FindReferences(ctx context.Context, client *lsp.Client, symbolName string, 
 				allReferences = append(allReferences, refInfo)
 			}
 		}
+
 	}
 
 	if len(allReferences) == 0 {

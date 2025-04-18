@@ -22,7 +22,7 @@ func TestApplyTextEdits(t *testing.T) {
 	// Create a test file with known content we can edit
 	testFileName := "edit_test.go"
 	testFilePath := filepath.Join(suite.WorkspaceDir, testFileName)
-	
+
 	initialContent := `package main
 
 import "fmt"
@@ -158,7 +158,7 @@ func TestApplyTextEditsWithBorderCases(t *testing.T) {
 	// Create a test file with known content we can edit
 	testFileName := "edge_case_test.go"
 	testFilePath := filepath.Join(suite.WorkspaceDir, testFileName)
-	
+
 	initialContent := `package main
 
 import "fmt"

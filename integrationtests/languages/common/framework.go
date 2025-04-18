@@ -61,6 +61,11 @@ func (ts *TestSuite) Setup() error {
 	}
 
 	// Create test output directory in the repo
+	// Create a log file named after the test
+	testName := ts.t.Name()
+	// Clean the test name for use in a filename
+	testName = strings.ReplaceAll(testName, "/", "_")
+	testName = strings.ReplaceAll(testName, " ", "_")
 
 	// Navigate to the repo root (assuming tests run from within the repo)
 	// The executable is in a temporary directory, so find the repo root based on the package path
@@ -82,7 +87,7 @@ func (ts *TestSuite) Setup() error {
 	}
 
 	// Use a consistent directory name based on the language
-	tempDir := filepath.Join(testOutputDir, langName)
+	tempDir := filepath.Join(testOutputDir, langName, testName)
 	logsDir := filepath.Join(tempDir, "logs")
 	workspaceDir := filepath.Join(tempDir, "workspace")
 
@@ -106,11 +111,6 @@ func (ts *TestSuite) Setup() error {
 		return fmt.Errorf("failed to create logs directory: %w", err)
 	}
 
-	// Create a log file named after the test
-	testName := ts.t.Name()
-	// Clean the test name for use in a filename
-	testName = strings.ReplaceAll(testName, "/", "_")
-	testName = strings.ReplaceAll(testName, " ", "_")
 	logFileName := fmt.Sprintf("%s.log", testName)
 	ts.logFile = filepath.Join(logsDir, logFileName)
 

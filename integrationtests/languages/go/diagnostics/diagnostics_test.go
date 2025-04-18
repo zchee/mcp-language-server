@@ -83,20 +83,20 @@ func TestDiagnostics(t *testing.T) {
 		// Ensure both helper.go and consumer.go are open in the LSP
 		helperPath := filepath.Join(suite.WorkspaceDir, "helper.go")
 		consumerPath := filepath.Join(suite.WorkspaceDir, "consumer.go")
-		
+
 		err := suite.Client.OpenFile(ctx, helperPath)
 		if err != nil {
 			t.Fatalf("Failed to open helper.go: %v", err)
 		}
-		
+
 		err = suite.Client.OpenFile(ctx, consumerPath)
 		if err != nil {
 			t.Fatalf("Failed to open consumer.go: %v", err)
 		}
-		
+
 		// Wait for files to be processed
 		time.Sleep(2 * time.Second)
-		
+
 		// Get initial diagnostics for consumer.go
 		result, err := tools.GetDiagnosticsForFile(ctx, suite.Client, consumerPath, true, true)
 		if err != nil {
@@ -124,13 +124,13 @@ func HelperFunction(value int) string {
 
 		// Explicitly notify the LSP server about the change
 		helperURI := fmt.Sprintf("file://%s", helperPath)
-		
+
 		// Notify the LSP server about the file change
 		err = suite.Client.NotifyChange(ctx, helperPath)
 		if err != nil {
 			t.Fatalf("Failed to notify change to helper.go: %v", err)
 		}
-		
+
 		// Also send a didChangeWatchedFiles notification for coverage
 		// This simulates what the watcher would do
 		fileChangeParams := protocol.DidChangeWatchedFilesParams{
@@ -141,26 +141,26 @@ func HelperFunction(value int) string {
 				},
 			},
 		}
-		
+
 		err = suite.Client.DidChangeWatchedFiles(ctx, fileChangeParams)
 		if err != nil {
 			t.Fatalf("Failed to send DidChangeWatchedFiles: %v", err)
 		}
-		
+
 		// Wait for LSP to process the change
 		time.Sleep(3 * time.Second)
-		
+
 		// Force reopen the consumer file to ensure LSP reevaluates it
 		err = suite.Client.CloseFile(ctx, consumerPath)
 		if err != nil {
 			t.Fatalf("Failed to close consumer.go: %v", err)
 		}
-		
+
 		err = suite.Client.OpenFile(ctx, consumerPath)
 		if err != nil {
 			t.Fatalf("Failed to reopen consumer.go: %v", err)
 		}
-		
+
 		// Wait for diagnostics to be generated
 		time.Sleep(3 * time.Second)
 

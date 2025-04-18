@@ -8,23 +8,23 @@ Reference at Line 19, Column 16:
 19|func ConsumerFunction() {
 20|	message := HelperFunction()
 21|	fmt.Println(message)
-22|	
+22|
 23|	// Use shared struct
 24|	s := &SharedStruct{
-25|		ID:   1,
-26|		Name: "test",
-27|		Value: 42.0,
+25|		ID:        1,
+26|		Name:      "test",
+27|		Value:     42.0,
 28|		Constants: []string{SharedConstant},
 29|	}
-30|	
+30|
 31|	// Call methods on the struct
 32|	fmt.Println(s.Method())
 33|	s.Process()
-34|	
+34|
 35|	// Use shared interface
 36|	var iface SharedInterface = s
 37|	fmt.Println(iface.GetName())
-38|	
+38|
 39|	// Use shared type
 40|	var t SharedType = 100
 41|	fmt.Println(t)
