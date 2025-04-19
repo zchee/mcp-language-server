@@ -1,0 +1,25 @@
+===
+/TEST_OUTPUT/workspace/consumer.py
+References in File: 2
+===
+Reference at Line 14, Column 24:
+14|class MyImplementation(SharedInterface):
+15|    """An implementation of the SharedInterface."""
+16|    
+17|    def process(self, data: List[str]) -> Dict[str, int]:
+18|        """Process the given data by counting occurrences.
+19|        
+20|        Args:
+21|            data: List of strings to process
+22|            
+23|        Returns:
+24|            Dictionary with counts of each item
+25|        """
+26|        result = {}
+27|        for item in data:
+28|            if item in result:
+29|                result[item] += 1
+30|            else:
+31|                result[item] = 1
+32|        return result
+
