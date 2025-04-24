@@ -10,8 +10,6 @@ require (
 	golang.org/x/text v0.24.0
 )
 
-replace github.com/metoro-io/mcp-golang => github.com/isaacphi/mcp-golang v0.0.0-20250314121746-948e874f9887
-
 require (
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
