@@ -73,10 +73,8 @@ Add something like the following configuration to your Claude Desktop settings (
 {
   "mcpServers": {
     "language-server": {
-      "command": "go",
+      "command": "mcp-language-server",
       "args": [
-        "run",
-        "github.com/isaacphi/mcp-language-server@latest",
         "--workspace",
         "/Users/you/dev/yourcodebase",
         "--lsp",
