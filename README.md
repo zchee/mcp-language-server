@@ -20,7 +20,7 @@ Language servers excel at tasks that LLMs often struggle with, such as precisely
 I have tested this server with the following language servers
 
 - pyright (Python)
-- tsserver (TypeScript)
+- typescript-language-server (TypeScript)
 - gopls (Go)
 - rust-analyzer (Rust)
 
@@ -58,7 +58,7 @@ go install github.com/isaacphi/mcp-language-server@latest
 Install a language server for your codebase:
 
 - Python (pyright): `npm install -g pyright`
-- TypeScript (tsserver): `npm install -g typescript typescript-language-server`
+- TypeScript (typescript-language-server): `npm install -g typescript typescript-language-server`
 - Go (gopls): `go install golang.org/x/tools/gopls@latest`
 - Rust (rust-analyzer): `rustup component add rust-analyzer`
 - Or use any language server
