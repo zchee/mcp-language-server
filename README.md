@@ -19,9 +19,9 @@ Language servers excel at tasks that LLMs often struggle with, such as precisely
 
 I have tested this server with the following language servers
 
+- gopls (Go)
 - pyright (Python)
 - typescript-language-server (TypeScript)
-- gopls (Go)
 - rust-analyzer (Rust)
 
 But it should be compatible with many more.
@@ -34,6 +34,8 @@ But it should be compatible with many more.
 - `get_codelens`: Retrieves code lens hints for additional context and actions on your code.
 - `execute_codelens`: Runs a code lens action.
 - `apply_text_edit`: Allows making multiple text edits to a file programmatically.
+- `hover`: Display documentation, type hints, or other hover information for a given location.
+- `rename_symbol`: Rename a symbol across a project.
 
 Behind the scenes, this MCP server can act on `workspace/applyEdit` requests from the language server, so it can apply things like refactor requests, adding imports, formatting code, etc.
 
@@ -173,9 +175,9 @@ The following features are on my radar:
 - [x] Apply edit
 - [x] Get diagnostics
 - [x] Code lens
-- [ ] Hover info
+- [x] Hover info
+- [x] Rename symbol
 - [ ] Code actions
 - [ ] Better handling of context and cancellation
 - [ ] Add LSP server configuration options and presets for common languages
-- [ ] Make a more consistent and scalable API for tools (pagination, etc.)
 - [ ] Create tools at a higher level of abstraction, combining diagnostics, code lens, hover, and code actions when reading definitions or references.
