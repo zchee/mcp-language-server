@@ -3,6 +3,7 @@ package tools
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -94,5 +95,75 @@ func addLineNumbers(text string, startLine int) string {
 		linePadding := strings.Repeat(" ", padding-len(lineNum))
 		result.WriteString(fmt.Sprintf("%s%s|%s\n", linePadding, lineNum, line))
 	}
+	return result.String()
+}
+
+// LineRange represents a continuous range of lines to display
+type LineRange struct {
+	Start int
+	End   int
+}
+
+// ConvertLinesToRanges converts a set of lines to continuous ranges
+func ConvertLinesToRanges(linesToShow map[int]bool, totalLines int) []LineRange {
+	// Convert map to sorted slice
+	lineNumbers := make([]int, 0, len(linesToShow))
+	for line := range linesToShow {
+		if line >= 0 && line < totalLines {
+			lineNumbers = append(lineNumbers, line)
+		}
+	}
+	sort.Ints(lineNumbers)
+
+	// Group into ranges
+	var ranges []LineRange
+	if len(lineNumbers) == 0 {
+		return ranges
+	}
+
+	currentRange := LineRange{Start: lineNumbers[0], End: lineNumbers[0]}
+
+	for i := 1; i < len(lineNumbers); i++ {
+		if lineNumbers[i] == currentRange.End+1 {
+			// Extend current range
+			currentRange.End = lineNumbers[i]
+		} else {
+			// Start new range
+			ranges = append(ranges, currentRange)
+			currentRange = LineRange{Start: lineNumbers[i], End: lineNumbers[i]}
+		}
+	}
+
+	// Add the last range
+	ranges = append(ranges, currentRange)
+	return ranges
+}
+
+// FormatLinesWithRanges formats file content using line ranges
+func FormatLinesWithRanges(lines []string, ranges []LineRange) string {
+	if len(ranges) == 0 {
+		return ""
+	}
+
+	var result strings.Builder
+	lastEnd := -1
+
+	for _, r := range ranges {
+		// Add skipped lines indicator
+		if lastEnd != -1 && r.Start > lastEnd+1 {
+			// skipped := r.Start - lastEnd - 1
+			result.WriteString("...\n")
+		}
+
+		// Extract lines for this range
+		rangeLines := lines[r.Start : r.End+1]
+
+		// Add line numbers using the existing function
+		numberedText := addLineNumbers(strings.Join(rangeLines, "\n"), r.Start+1)
+		result.WriteString(numberedText)
+
+		lastEnd = r.End
+	}
+
 	return result.String()
 }

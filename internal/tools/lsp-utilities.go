@@ -142,3 +142,47 @@ func GetFullDefinition(ctx context.Context, client *lsp.Client, startLocation pr
 
 	return "", protocol.Location{}, fmt.Errorf("symbol not found")
 }
+
+// GetLineRangesToDisplay determines which lines should be displayed for a set of locations
+func GetLineRangesToDisplay(ctx context.Context, client *lsp.Client, locations []protocol.Location, totalLines int, contextLines int) (map[int]bool, error) {
+	// Set to track which lines need to be displayed
+	linesToShow := make(map[int]bool)
+
+	// For each location, get its container and add relevant lines
+	for _, loc := range locations {
+		// Use GetFullDefinition to find container
+		_, containerLoc, err := GetFullDefinition(ctx, client, loc)
+		if err != nil {
+			// If container not found, just use the location's line
+			refLine := int(loc.Range.Start.Line)
+			linesToShow[refLine] = true
+
+			// Add context lines
+			for i := refLine - contextLines; i <= refLine+contextLines; i++ {
+				if i >= 0 && i < totalLines {
+					linesToShow[i] = true
+				}
+			}
+			continue
+		}
+
+		// Add container start and end lines
+		containerStart := int(containerLoc.Range.Start.Line)
+		containerEnd := int(containerLoc.Range.End.Line)
+		linesToShow[containerStart] = true
+		// linesToShow[containerEnd] = true
+
+		// Add the reference line
+		refLine := int(loc.Range.Start.Line)
+		linesToShow[refLine] = true
+
+		// Add context lines around the reference
+		for i := refLine - contextLines; i <= refLine+contextLines; i++ {
+			if i >= 0 && i < totalLines && i >= containerStart && i <= containerEnd {
+				linesToShow[i] = true
+			}
+		}
+	}
+
+	return linesToShow, nil
+}

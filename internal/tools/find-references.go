@@ -3,7 +3,9 @@ package tools
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
@@ -11,6 +13,14 @@ import (
 )
 
 func FindReferences(ctx context.Context, client *lsp.Client, symbolName string, showLineNumbers bool) (string, error) {
+	// Get context lines from environment variable
+	contextLines := 5
+	if envLines := os.Getenv("LSP_CONTEXT_LINES"); envLines != "" {
+		if val, err := strconv.Atoi(envLines); err == nil && val >= 0 {
+			contextLines = val
+		}
+	}
+
 	// First get the symbol location like ReadDefinition does
 	symbolResult, err := client.Symbol(ctx, protocol.WorkspaceSymbolParams{
 		Query: symbolName,
@@ -79,43 +89,60 @@ func FindReferences(ctx context.Context, client *lsp.Client, symbolName string, 
 		for _, uriStr := range uris {
 			uri := protocol.DocumentUri(uriStr)
 			fileRefs := refsByFile[uri]
+			filePath := strings.TrimPrefix(uriStr, "file://")
 
-			// Format file header similarly to ReadDefinition style
-			fileInfo := fmt.Sprintf("%s\nFile: %s\nReferences in File: %d\n%s",
-				strings.Repeat("=", 3),
-				strings.TrimPrefix(uriStr, "file://"),
+			// Format file header
+			fileInfo := fmt.Sprintf("---\n\n%s\nReferences in File: %d\n",
+				filePath,
 				len(fileRefs),
-				strings.Repeat("=", 3))
-			allReferences = append(allReferences, fileInfo)
+			)
 
-			for _, ref := range fileRefs {
-				// Use GetFullDefinition but with a smaller context window
-				snippet, snippetLocation, err := GetFullDefinition(ctx, client, ref)
-				if err != nil {
-					continue
-				}
-
-				if showLineNumbers {
-					snippet = addLineNumbers(snippet, int(snippetLocation.Range.Start.Line)+1)
-				}
-
-				// Format reference location info
-				refInfo := fmt.Sprintf("\nReference at Line %d, Column %d:\n%s\n",
-					ref.Range.Start.Line+1,
-					ref.Range.Start.Character+1,
-					snippet)
-
-				allReferences = append(allReferences, refInfo)
+			// Format locations with context
+			fileContent, err := os.ReadFile(filePath)
+			if err != nil {
+				// Log error but continue with other files
+				allReferences = append(allReferences, fileInfo+"\nError reading file: "+err.Error())
+				continue
 			}
-		}
 
+			lines := strings.Split(string(fileContent), "\n")
+
+			// Track reference locations for header display
+			var locStrings []string
+			for _, ref := range fileRefs {
+				locStr := fmt.Sprintf("L%d:C%d",
+					ref.Range.Start.Line+1,
+					ref.Range.Start.Character+1)
+				locStrings = append(locStrings, locStr)
+			}
+
+			// Collect lines to display using the utility function
+			linesToShow, err := GetLineRangesToDisplay(ctx, client, fileRefs, len(lines), contextLines)
+			if err != nil {
+				// Log error but continue with other files
+				continue
+			}
+
+			// Convert to line ranges using the utility function
+			lineRanges := ConvertLinesToRanges(linesToShow, len(lines))
+
+			// Format with locations in header
+			formattedOutput := fileInfo
+			if len(locStrings) > 0 {
+				formattedOutput += "At: " + strings.Join(locStrings, ", ") + "\n"
+			}
+
+			// Format the content with ranges
+			formattedOutput += "\n" + FormatLinesWithRanges(lines, lineRanges)
+			allReferences = append(allReferences, formattedOutput)
+		}
 	}
 
 	if len(allReferences) == 0 {
-		banner := strings.Repeat("=", 3) + "\n"
+		banner := "---\n\n"
 		return fmt.Sprintf("%sNo references found for symbol: %s\n%s",
 			banner, symbolName, banner), nil
 	}
 
-	return strings.Join(allReferences, ""), nil
+	return strings.Join(allReferences, "\n"), nil
 }
