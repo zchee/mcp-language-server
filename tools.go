@@ -336,6 +336,52 @@ func (s *mcpServer) registerTools() error {
 		return mcp.NewToolResultText(text), nil
 	})
 
+	callersTool := mcp.NewTool("callers",
+		mcp.WithDescription("Determine which functions call the given symbol. Returns a list of the calling functions and the locations of the call sites."),
+		mcp.WithString("symbolName",
+			mcp.Required(),
+			mcp.Description("The name of the symbol whose callers you want to find (e.g. 'mypackage.MyFunction', 'MyType.MyMethod')"),
+		),
+	)
+	s.mcpServer.AddTool(callersTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Extract arguments
+		symbolName, err := request.RequireString("symbolName")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		coreLogger.Debug("Executing callers for symbol: %s", symbolName)
+		text, err := tools.GetCallers(s.ctx, s.lspClient, symbolName, 1)
+		if err != nil {
+			coreLogger.Error("Failed to find callers: %v", err)
+			return mcp.NewToolResultError(fmt.Sprintf("failed to find callers: %v", err)), nil
+		}
+		return mcp.NewToolResultText(text), nil
+	})
+
+	calleesTool := mcp.NewTool("callees",
+		mcp.WithDescription("Resolve which functions a given symbol calls. Returns a list of the called functions and their locations."),
+		mcp.WithString("symbolName",
+			mcp.Required(),
+			mcp.Description("The name of the symbol whose callees you want to find (e.g. 'mypackage.MyFunction', 'MyType.MyMethod')"),
+		),
+	)
+	s.mcpServer.AddTool(calleesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Extract arguments
+		symbolName, err := request.RequireString("symbolName")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		coreLogger.Debug("Executing callees for symbol: %s", symbolName)
+		text, err := tools.GetCallees(s.ctx, s.lspClient, symbolName, 1)
+		if err != nil {
+			coreLogger.Error("Failed to find callees: %v", err)
+			return mcp.NewToolResultError(fmt.Sprintf("failed to find callees: %v", err)), nil
+		}
+		return mcp.NewToolResultText(text), nil
+	})
+
 	coreLogger.Info("Successfully registered all MCP tools")
 	return nil
 }

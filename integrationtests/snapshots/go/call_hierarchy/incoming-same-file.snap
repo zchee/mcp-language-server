@@ -1,0 +1,10 @@
+
+---
+Name: FooBar
+Detail: github.com/isaacphi/mcp-language-server/integrationtests/test-output/go/workspace • main.go
+/TEST_OUTPUT/workspace/main.go
+Range: L6:C6 - L6:C12
+- Called By: main
+  Detail: github.com/isaacphi/mcp-language-server/integrationtests/test-output/go/workspace • main.go
+/TEST_OUTPUT/workspace/main.go
+  Range: L12:C6 - L12:C10

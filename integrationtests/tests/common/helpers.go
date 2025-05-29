@@ -1,9 +1,11 @@
 package common
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -91,9 +93,24 @@ func CleanupTestSuites(suites ...*TestSuite) {
 	}
 }
 
+// use instead of runtime.GOROOT which is deprecated
+func getGoRoot() string {
+	cmd := exec.Command("go", "env", "GOROOT")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		panic(err)
+	}
+	return strings.TrimSpace(out.String())
+}
+
 // normalizePaths replaces absolute paths in the result with placeholder paths for consistent snapshots
 func normalizePaths(_ *testing.T, input string) string {
 	// No need to get the repo root - we're just looking for patterns
+
+	// But this is useful
+	goroot := getGoRoot()
 
 	// Simple approach: just replace any path segments that contain workspace/
 	lines := strings.Split(input, "\n")
@@ -114,6 +131,13 @@ func normalizePaths(_ *testing.T, input string) string {
 			if len(parts) > 1 {
 				// Replace with a simple placeholder path
 				lines[i] = "/TEST_OUTPUT/workspace/" + parts[1]
+			}
+		}
+		if strings.Contains(line, goroot) {
+			parts := strings.Split(line, goroot)
+			if len(parts) > 1 {
+				// Replace with a simple placeholder path
+				lines[i] = "/GOROOT" + parts[1]
 			}
 		}
 	}

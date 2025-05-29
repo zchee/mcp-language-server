@@ -1,0 +1,26 @@
+
+---
+Name: ConsumerFunction
+Detail: github.com/isaacphi/mcp-language-server/integrationtests/test-output/go/workspace • consumer.go
+/TEST_OUTPUT/workspace/consumer.go
+Range: L6:C6 - L6:C22
+- Calls: GetName
+  Detail: github.com/isaacphi/mcp-language-server/integrationtests/test-output/go/workspace • types.go
+/TEST_OUTPUT/workspace/types.go
+  Range: L21:C2 - L21:C9
+- Calls: HelperFunction
+  Detail: github.com/isaacphi/mcp-language-server/integrationtests/test-output/go/workspace • helper.go
+/TEST_OUTPUT/workspace/helper.go
+  Range: L4:C6 - L4:C20
+- Calls: Method
+  Detail: github.com/isaacphi/mcp-language-server/integrationtests/test-output/go/workspace • types.go
+/TEST_OUTPUT/workspace/types.go
+  Range: L14:C24 - L14:C30
+- Calls: Println
+  Detail: fmt • print.go
+/GOROOT/src/fmt/print.go
+  Range: L313:C6 - L313:C13
+- Calls: Process
+  Detail: github.com/isaacphi/mcp-language-server/integrationtests/test-output/go/workspace • types.go
+/TEST_OUTPUT/workspace/types.go
+  Range: L31:C24 - L31:C31
