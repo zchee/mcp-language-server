@@ -4,15 +4,7 @@ Symbol: method
 /TEST_OUTPUT/workspace/clangd/src/consumer.cpp
 Kind: Method
 Container Name: TestClass
-Range: L7:C1 - L15:C2
+Range: L14:C1 - L14:C47
 
- 7|class TestClass {
- 8| public:
- 9|  /**
-10|   * @brief A method that takes an integer parameter.
-11|   *
-12|   * @param param The integer parameter to be processed.
-13|   */
 14|  void method(int param) { helperFunction(); }
-15|};
 

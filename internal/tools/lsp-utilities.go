@@ -5,14 +5,19 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/isaacphi/mcp-language-server/internal/lsp"
 	"github.com/isaacphi/mcp-language-server/internal/protocol"
 )
 
-// Gets the full code block surrounding the start of the input location
-func GetFullDefinition(ctx context.Context, client *lsp.Client, startLocation protocol.Location) (string, protocol.Location, protocol.DocumentSymbolResult, error) {
+type match struct {
+	Symbol protocol.DocumentSymbolResult
+	Range  protocol.Range
+}
+
+func identifyOverlappingSymbols(ctx context.Context, client *lsp.Client, startLocation protocol.Location) ([]match, error) {
 	symParams := protocol.DocumentSymbolParams{
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: startLocation.URI,
@@ -22,45 +27,59 @@ func GetFullDefinition(ctx context.Context, client *lsp.Client, startLocation pr
 	// Get all symbols in document
 	symResult, err := client.DocumentSymbol(ctx, symParams)
 	if err != nil {
-		return "", protocol.Location{}, nil, fmt.Errorf("failed to get document symbols: %w", err)
+		return nil, fmt.Errorf("failed to get document symbols: %w", err)
 	}
 
 	symbols, err := symResult.Results()
 	if err != nil {
-		return "", protocol.Location{}, nil, fmt.Errorf("failed to process document symbols: %w", err)
+		return nil, fmt.Errorf("failed to process document symbols: %w", err)
 	}
 
-	var symbolRange protocol.Range
-	var symbol protocol.DocumentSymbolResult
-	found := false
-
 	// Search for symbol at startLocation
-	var searchSymbols func(symbols []protocol.DocumentSymbolResult) bool
-	searchSymbols = func(symbols []protocol.DocumentSymbolResult) bool {
+	// - multiple symbols might match (for example, a C++ namespace) so find
+	//   all of the matching symbols and use the smallest one (or the first one
+	//   if there is a tie)
+	var matchingSymbols []match
+
+	var searchSymbols func(symbols []protocol.DocumentSymbolResult)
+	searchSymbols = func(symbols []protocol.DocumentSymbolResult) {
 		for _, sym := range symbols {
 			if containsPosition(sym.GetRange(), startLocation.Range.Start) {
-				symbol = sym
-				symbolRange = sym.GetRange()
-				found = true
-				return true
+				matchingSymbols = append(matchingSymbols, match{sym, sym.GetRange()})
 			}
+
 			// Handle nested symbols if it's a DocumentSymbol
 			if ds, ok := sym.(*protocol.DocumentSymbol); ok && len(ds.Children) > 0 {
 				childSymbols := make([]protocol.DocumentSymbolResult, len(ds.Children))
 				for i := range ds.Children {
 					childSymbols[i] = &ds.Children[i]
 				}
-				if searchSymbols(childSymbols) {
-					return true
-				}
+				searchSymbols(childSymbols)
 			}
 		}
-		return false
 	}
 
-	found = searchSymbols(symbols)
+	searchSymbols(symbols)
+	return matchingSymbols, nil
+}
 
-	if found {
+// Gets the full code block surrounding the start of the input location
+func GetFullDefinition(ctx context.Context, client *lsp.Client, startLocation protocol.Location) (string, protocol.Location, protocol.DocumentSymbolResult, error) {
+
+	matchingSymbols, err := identifyOverlappingSymbols(ctx, client, startLocation)
+	if err != nil {
+		return "", protocol.Location{}, nil, err
+	}
+
+	// Identify the smallest overlapping symbol
+	slices.SortStableFunc(matchingSymbols, func(a, b match) int {
+		return int(a.Range.End.Line-a.Range.Start.Line) - int(b.Range.End.Line-b.Range.Start.Line)
+	})
+
+	if len(matchingSymbols) > 0 {
+		symbol := matchingSymbols[0].Symbol
+		symbolRange := matchingSymbols[0].Range
+
 		// Convert URI to filesystem path
 		filePath, err := url.PathUnescape(strings.TrimPrefix(string(startLocation.URI), "file://"))
 		if err != nil {
@@ -125,16 +144,13 @@ func GetFullDefinition(ctx context.Context, client *lsp.Client, startLocation pr
 			}
 		}
 
-		// Update location with new range
-		startLocation.Range = symbolRange
-
 		// Return the text within the range
 		if int(symbolRange.End.Line) >= len(lines) {
 			return "", protocol.Location{}, nil, fmt.Errorf("end line out of range")
 		}
 
 		selectedLines := lines[symbolRange.Start.Line : symbolRange.End.Line+1]
-		return strings.Join(selectedLines, "\n"), startLocation, symbol, nil
+		return strings.Join(selectedLines, "\n"), protocol.Location{URI: startLocation.URI, Range: symbolRange}, symbol, nil
 	}
 
 	return "", protocol.Location{}, nil, fmt.Errorf("symbol not found")
@@ -148,8 +164,8 @@ func GetLineRangesToDisplay(ctx context.Context, client *lsp.Client, locations [
 	// For each location, get its container and add relevant lines
 	for _, loc := range locations {
 		// Use GetFullDefinition to find container
-		_, containerLoc, _, err := GetFullDefinition(ctx, client, loc)
-		if err != nil {
+		matchingSymbols, _ := identifyOverlappingSymbols(ctx, client, loc)
+		if len(matchingSymbols) == 0 {
 			// If container not found, just use the location's line
 			refLine := int(loc.Range.Start.Line)
 			linesToShow[refLine] = true
@@ -163,9 +179,11 @@ func GetLineRangesToDisplay(ctx context.Context, client *lsp.Client, locations [
 			continue
 		}
 
+		containerRange := matchingSymbols[0].Range
+
 		// Add container start and end lines
-		containerStart := int(containerLoc.Range.Start.Line)
-		containerEnd := int(containerLoc.Range.End.Line)
+		containerStart := int(containerRange.Start.Line)
+		containerEnd := int(containerRange.End.Line)
 		linesToShow[containerStart] = true
 		// linesToShow[containerEnd] = true
 
