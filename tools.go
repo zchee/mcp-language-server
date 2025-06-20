@@ -382,6 +382,48 @@ func (s *mcpServer) registerTools() error {
 		return mcp.NewToolResultText(text), nil
 	})
 
+	contentTool := mcp.NewTool("content",
+		mcp.WithDescription("Read the source code definition of a symbol (function, type, constant, etc.) at the specified location."),
+		mcp.WithString("filePath",
+			mcp.Required(),
+			mcp.Description("The path to the file"),
+		),
+		mcp.WithNumber("line",
+			mcp.Required(),
+			mcp.Description("The line number where the content is requested (1-indexed)"),
+		),
+		mcp.WithNumber("column",
+			mcp.Required(),
+			mcp.Description("The column number where the content is requested (1-indexed)"),
+		),
+	)
+
+	s.mcpServer.AddTool(contentTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Extract arguments
+		filePath, err := request.RequireString("filePath")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		line, err := request.RequireInt("line")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		column, err := request.RequireInt("column")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		coreLogger.Debug("Executing content for file: %s line: %d column: %d", filePath, line, column)
+		text, err := tools.GetContentInfo(s.ctx, s.lspClient, filePath, line, column)
+		if err != nil {
+			coreLogger.Error("Failed to get content information: %v", err)
+			return mcp.NewToolResultError(fmt.Sprintf("failed to get content: %v", err)), nil
+		}
+		return mcp.NewToolResultText(text), nil
+	})
+
 	coreLogger.Info("Successfully registered all MCP tools")
 	return nil
 }
