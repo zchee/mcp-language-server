@@ -2,6 +2,7 @@
 
 Symbol: TestClass
 /TEST_OUTPUT/workspace/clangd/src/consumer.cpp
+Kind: Class
 Range: L7:C1 - L15:C2
 
  7|class TestClass {
