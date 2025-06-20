@@ -1,0 +1,14 @@
+
+---
+Name: HelperFunction
+Detail: github.com/isaacphi/mcp-language-server/integrationtests/test-output/go/workspace • helper.go
+/TEST_OUTPUT/workspace/helper.go
+Range: L4:C6 - L4:C20
+- Called By: AnotherConsumer
+  Detail: github.com/isaacphi/mcp-language-server/integrationtests/test-output/go/workspace • another_consumer.go
+/TEST_OUTPUT/workspace/another_consumer.go
+  Range: L6:C6 - L6:C21
+- Called By: ConsumerFunction
+  Detail: github.com/isaacphi/mcp-language-server/integrationtests/test-output/go/workspace • consumer.go
+/TEST_OUTPUT/workspace/consumer.go
+  Range: L6:C6 - L6:C22

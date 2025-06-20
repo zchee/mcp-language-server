@@ -178,6 +178,8 @@ This is an [MCP](https://modelcontextprotocol.io/introduction) server that runs 
 - `hover`: Display documentation, type hints, or other hover information for a given location.
 - `rename_symbol`: Rename a symbol across a project.
 - `edit_file`: Allows making multiple text edits to a file based on line numbers. Provides a more reliable and context-economical way to edit files compared to search and replace based edit tools.
+- `callers`: Shows all locations that call a given symbol
+- `callees`: Shows all functions that a given symbol calls
 
 ## About
 
