@@ -21,32 +21,46 @@ func ReadDefinition(ctx context.Context, client *lsp.Client, symbolName string) 
 		container := ""
 
 		// Skip symbols that we are not looking for. workspace/symbol may return
-		// a large number of fuzzy matches.
-		switch v := symbol.(type) {
-		case *protocol.SymbolInformation:
-			// SymbolInformation results have richer data.
-			kind = fmt.Sprintf("Kind: %s\n", protocol.TableKindMap[v.Kind])
-			if v.ContainerName != "" {
-				container = fmt.Sprintf("Container Name: %s\n", v.ContainerName)
+		// a large number of fuzzy matches. This handles BaseSymbolInformation
+		doesSymbolMatch := func(vKind protocol.SymbolKind, vContainerName string) bool {
+			thisName := symbol.GetName()
+
+			kind = fmt.Sprintf("Kind: %s\n", protocol.TableKindMap[vKind])
+			if vContainerName != "" {
+				container = fmt.Sprintf("Container Name: %s\n", vContainerName)
+			}
+
+			if thisName == symbolName {
+				return true
 			}
 
 			// Handle different matching strategies based on the search term
 			if strings.Contains(symbolName, ".") {
-				// For qualified names like "Type.Method", require exact match
-				if symbol.GetName() != symbolName {
-					continue
+				// For qualified names like "Type.Method", don't do fuzzy match
+
+			} else if vKind == protocol.Method {
+				// For methods, only match if the method name matches exactly Type.symbolName or Type::symbolName or symbolName
+				if strings.HasSuffix(thisName, "::"+symbolName) || strings.HasSuffix(symbolName, "::"+thisName) {
+					return true
 				}
-			} else {
-				// For unqualified names like "Method"
-				if v.Kind == protocol.Method {
-					// For methods, only match if the method name matches exactly Type.symbolName or Type::symbolName or symbolName
-					if !strings.HasSuffix(symbol.GetName(), "::"+symbolName) && !strings.HasSuffix(symbol.GetName(), "."+symbolName) && symbol.GetName() != symbolName {
-						continue
-					}
-				} else if symbol.GetName() != symbolName {
-					// For non-methods, exact match only
-					continue
+
+				if strings.HasSuffix(thisName, "."+symbolName) || strings.HasSuffix(symbolName, "."+thisName) {
+					return true
 				}
+			}
+
+			return false
+		}
+
+		switch v := symbol.(type) {
+		case *protocol.SymbolInformation:
+			if !doesSymbolMatch(v.Kind, v.ContainerName) {
+				continue
+			}
+
+		case *protocol.WorkspaceSymbol:
+			if !doesSymbolMatch(v.Kind, v.ContainerName) {
+				continue
 			}
 		default:
 			if symbol.GetName() != symbolName {
