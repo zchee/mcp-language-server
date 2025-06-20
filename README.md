@@ -173,6 +173,7 @@ This is an [MCP](https://modelcontextprotocol.io/introduction) server that runs 
 ## Tools
 
 - `definition`: Retrieves the complete source code definition of any symbol (function, type, constant, etc.) from your codebase.
+- `content`: Retrieves the complete source code definition (function, type, constant, etc.) from your codebase at a specific location.
 - `references`: Locates all usages and references of a symbol throughout the codebase.
 - `diagnostics`: Provides diagnostic information for a specific file, including warnings and errors.
 - `hover`: Display documentation, type hints, or other hover information for a given location.

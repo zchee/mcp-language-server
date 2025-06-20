@@ -64,7 +64,7 @@ func ReadDefinition(ctx context.Context, client *lsp.Client, symbolName string) 
 		}
 
 		banner := "---\n\n"
-		definition, loc, err := GetFullDefinition(ctx, client, loc)
+		definition, loc, _, err := GetFullDefinition(ctx, client, loc)
 		locationInfo := fmt.Sprintf(
 			"Symbol: %s\n"+
 				"File: %s\n"+

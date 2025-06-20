@@ -12,7 +12,7 @@ import (
 )
 
 // Gets the full code block surrounding the start of the input location
-func GetFullDefinition(ctx context.Context, client *lsp.Client, startLocation protocol.Location) (string, protocol.Location, error) {
+func GetFullDefinition(ctx context.Context, client *lsp.Client, startLocation protocol.Location) (string, protocol.Location, protocol.DocumentSymbolResult, error) {
 	symParams := protocol.DocumentSymbolParams{
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: startLocation.URI,
@@ -22,15 +22,16 @@ func GetFullDefinition(ctx context.Context, client *lsp.Client, startLocation pr
 	// Get all symbols in document
 	symResult, err := client.DocumentSymbol(ctx, symParams)
 	if err != nil {
-		return "", protocol.Location{}, fmt.Errorf("failed to get document symbols: %w", err)
+		return "", protocol.Location{}, nil, fmt.Errorf("failed to get document symbols: %w", err)
 	}
 
 	symbols, err := symResult.Results()
 	if err != nil {
-		return "", protocol.Location{}, fmt.Errorf("failed to process document symbols: %w", err)
+		return "", protocol.Location{}, nil, fmt.Errorf("failed to process document symbols: %w", err)
 	}
 
 	var symbolRange protocol.Range
+	var symbol protocol.DocumentSymbolResult
 	found := false
 
 	// Search for symbol at startLocation
@@ -38,6 +39,7 @@ func GetFullDefinition(ctx context.Context, client *lsp.Client, startLocation pr
 	searchSymbols = func(symbols []protocol.DocumentSymbolResult) bool {
 		for _, sym := range symbols {
 			if containsPosition(sym.GetRange(), startLocation.Range.Start) {
+				symbol = sym
 				symbolRange = sym.GetRange()
 				found = true
 				return true
@@ -62,14 +64,14 @@ func GetFullDefinition(ctx context.Context, client *lsp.Client, startLocation pr
 		// Convert URI to filesystem path
 		filePath, err := url.PathUnescape(strings.TrimPrefix(string(startLocation.URI), "file://"))
 		if err != nil {
-			return "", protocol.Location{}, fmt.Errorf("failed to unescape URI: %w", err)
+			return "", protocol.Location{}, nil, fmt.Errorf("failed to unescape URI: %w", err)
 		}
 
 		// Read the file to get the full lines of the definition
 		// because we may have a start and end column
 		content, err := os.ReadFile(filePath)
 		if err != nil {
-			return "", protocol.Location{}, fmt.Errorf("failed to read file: %w", err)
+			return "", protocol.Location{}, nil, fmt.Errorf("failed to read file: %w", err)
 		}
 
 		lines := strings.Split(string(content), "\n")
@@ -79,7 +81,7 @@ func GetFullDefinition(ctx context.Context, client *lsp.Client, startLocation pr
 
 		// Get the line at the end of the range
 		if int(symbolRange.End.Line) >= len(lines) {
-			return "", protocol.Location{}, fmt.Errorf("line number out of range")
+			return "", protocol.Location{}, nil, fmt.Errorf("line number out of range")
 		}
 
 		line := lines[symbolRange.End.Line]
@@ -128,14 +130,14 @@ func GetFullDefinition(ctx context.Context, client *lsp.Client, startLocation pr
 
 		// Return the text within the range
 		if int(symbolRange.End.Line) >= len(lines) {
-			return "", protocol.Location{}, fmt.Errorf("end line out of range")
+			return "", protocol.Location{}, nil, fmt.Errorf("end line out of range")
 		}
 
 		selectedLines := lines[symbolRange.Start.Line : symbolRange.End.Line+1]
-		return strings.Join(selectedLines, "\n"), startLocation, nil
+		return strings.Join(selectedLines, "\n"), startLocation, symbol, nil
 	}
 
-	return "", protocol.Location{}, fmt.Errorf("symbol not found")
+	return "", protocol.Location{}, nil, fmt.Errorf("symbol not found")
 }
 
 // GetLineRangesToDisplay determines which lines should be displayed for a set of locations
@@ -146,7 +148,7 @@ func GetLineRangesToDisplay(ctx context.Context, client *lsp.Client, locations [
 	// For each location, get its container and add relevant lines
 	for _, loc := range locations {
 		// Use GetFullDefinition to find container
-		_, containerLoc, err := GetFullDefinition(ctx, client, loc)
+		_, containerLoc, _, err := GetFullDefinition(ctx, client, loc)
 		if err != nil {
 			// If container not found, just use the location's line
 			refLine := int(loc.Range.Start.Line)
