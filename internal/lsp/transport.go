@@ -4,17 +4,24 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/isaacphi/mcp-language-server/internal/logging"
+	"github.com/isaacphi/mcp-language-server/internal/protocol"
 )
 
 // Create component-specific loggers
 var lspLogger = logging.NewLogger(logging.LSP)
 var wireLogger = logging.NewLogger(logging.LSPWire)
 var processLogger = logging.NewLogger(logging.LSPProcess)
+
+var (
+	ErrContentModified = errors.New("content modified")
+	ErrServerCancelled = errors.New("server cancelled")
+)
 
 // WriteMessage writes an LSP message to the given writer
 func WriteMessage(w io.Writer, msg *Message) error {
@@ -230,7 +237,14 @@ func (c *Client) Call(ctx context.Context, method string, params any, result any
 
 	if resp.Error != nil {
 		lspLogger.Error("Request failed: %s (code: %d)", resp.Error.Message, resp.Error.Code)
-		return fmt.Errorf("request failed: %s (code: %d)", resp.Error.Message, resp.Error.Code)
+		switch protocol.LSPErrorCodes(resp.Error.Code) {
+		case protocol.ContentModified:
+			return ErrContentModified
+		case protocol.ServerCancelled:
+			return ErrServerCancelled
+		default:
+			return fmt.Errorf("request failed: %s (code: %d)", resp.Error.Message, resp.Error.Code)
+		}
 	}
 
 	if result != nil {

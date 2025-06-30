@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -31,9 +32,17 @@ func GetHoverInfo(ctx context.Context, client *lsp.Client, filePath string, line
 	params.Position = position
 
 	// Execute the hover request
-	hoverResult, err := client.Hover(ctx, params)
-	if err != nil {
-		return "", fmt.Errorf("failed to get hover information: %v", err)
+	// - some LSP (rust) will return "content modified", so retry it
+	var hoverResult protocol.Hover
+	for i := range 3 {
+		hoverResult, err = client.Hover(ctx, params)
+		if err == nil {
+			break
+		} else if errors.Is(err, lsp.ErrContentModified) {
+			continue
+		} else if i == 2 {
+			return "", fmt.Errorf("failed to get hover information: %v", err)
+		}
 	}
 
 	var result strings.Builder
