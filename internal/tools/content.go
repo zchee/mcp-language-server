@@ -32,6 +32,10 @@ func GetContentInfo(ctx context.Context, client *lsp.Client, filePath string, li
 	}
 
 	definition, loc, symbol, err := GetFullDefinition(ctx, client, location)
+	if err != nil {
+		return "", err
+	}
+
 	locationInfo := fmt.Sprintf(
 		"Symbol: %s\n"+
 			"File: %s\n"+
@@ -43,10 +47,6 @@ func GetContentInfo(ctx context.Context, client *lsp.Client, filePath string, li
 		loc.Range.End.Line+1,
 		loc.Range.End.Character+1,
 	)
-
-	if err != nil {
-		return "", err
-	}
 
 	definition = addLineNumbers(definition, int(loc.Range.Start.Line)+1)
 
