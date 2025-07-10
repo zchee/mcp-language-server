@@ -6,7 +6,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/fsnotify/fsnotify v1.9.0
-	github.com/mark3labs/mcp-go v0.32.0
+	github.com/mark3labs/mcp-go v0.33.0
 	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/text v0.26.0
