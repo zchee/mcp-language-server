@@ -181,6 +181,13 @@ func formatTo(basename string, src []byte) {
 	if err := os.WriteFile(filepath.Join(*outputdir, basename), formatted, 0644); err != nil {
 		log.Fatal(err)
 	}
+
+	cmd := exec.Command("gofmt", "-w", "-r", `interface{} -> any`, filepath.Join(*outputdir, basename))
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 // create the common file header for the output files

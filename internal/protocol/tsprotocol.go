@@ -203,7 +203,7 @@ type CallHierarchyRegistrationOptions struct {
 // See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification#cancelParams
 type CancelParams struct {
 	// The request id to cancel.
-	ID interface{} `json:"id"`
+	ID any `json:"id"`
 }
 
 // Additional information that describes document changes.
@@ -1420,7 +1420,7 @@ type Diagnostic struct {
 	// always provide a severity value.
 	Severity DiagnosticSeverity `json:"severity,omitempty"`
 	// The diagnostic's code, which usually appear in the user interface.
-	Code interface{} `json:"code,omitempty"`
+	Code any `json:"code,omitempty"`
 	// An optional property to describe the error code.
 	// Requires the code field (above) to be present/not null.
 	//
@@ -1796,7 +1796,7 @@ type DocumentDiagnosticReportKind string
 //
 // See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification#documentDiagnosticReportPartialResult
 type DocumentDiagnosticReportPartialResult struct {
-	RelatedDocuments map[DocumentUri]interface{} `json:"relatedDocuments"`
+	RelatedDocuments map[DocumentUri]any `json:"relatedDocuments"`
 }
 
 // A document filter describes a top level text document or
@@ -4349,7 +4349,7 @@ type RelatedFullDocumentDiagnosticReport struct {
 	// a.cpp and result in errors in a header file b.hpp.
 	//
 	// @since 3.17.0
-	RelatedDocuments map[DocumentUri]interface{} `json:"relatedDocuments,omitempty"`
+	RelatedDocuments map[DocumentUri]any `json:"relatedDocuments,omitempty"`
 	FullDocumentDiagnosticReport
 }
 
@@ -4366,7 +4366,7 @@ type RelatedUnchangedDocumentDiagnosticReport struct {
 	// a.cpp and result in errors in a header file b.hpp.
 	//
 	// @since 3.17.0
-	RelatedDocuments map[DocumentUri]interface{} `json:"relatedDocuments,omitempty"`
+	RelatedDocuments map[DocumentUri]any `json:"relatedDocuments,omitempty"`
 	UnchangedDocumentDiagnosticReport
 }
 
@@ -4778,7 +4778,7 @@ type ServerCapabilities struct {
 	// Defines how text documents are synced. Is either a detailed structure
 	// defining each notification or for backwards compatibility the
 	// TextDocumentSyncKind number.
-	TextDocumentSync interface{} `json:"textDocumentSync,omitempty"`
+	TextDocumentSync any `json:"textDocumentSync,omitempty"`
 	// Defines how notebook documents are synced.
 	//
 	// @since 3.17.0
@@ -4806,7 +4806,7 @@ type ServerCapabilities struct {
 	// The server provides code actions. CodeActionOptions may only be
 	// specified if the client states that it supports
 	// `codeActionLiteralSupport` in its initial `initialize` request.
-	CodeActionProvider interface{} `json:"codeActionProvider,omitempty"`
+	CodeActionProvider any `json:"codeActionProvider,omitempty"`
 	// The server provides code lens.
 	CodeLensProvider *CodeLensOptions `json:"codeLensProvider,omitempty"`
 	// The server provides document link support.
@@ -4824,7 +4824,7 @@ type ServerCapabilities struct {
 	// The server provides rename support. RenameOptions may only be
 	// specified if the client states that it supports
 	// `prepareSupport` in its initial `initialize` request.
-	RenameProvider interface{} `json:"renameProvider,omitempty"`
+	RenameProvider any `json:"renameProvider,omitempty"`
 	// The server provides folding provider support.
 	FoldingRangeProvider *Or_ServerCapabilities_foldingRangeProvider `json:"foldingRangeProvider,omitempty"`
 	// The server provides selection range support.
@@ -4842,7 +4842,7 @@ type ServerCapabilities struct {
 	// The server provides semantic tokens support.
 	//
 	// @since 3.16.0
-	SemanticTokensProvider interface{} `json:"semanticTokensProvider,omitempty"`
+	SemanticTokensProvider any `json:"semanticTokensProvider,omitempty"`
 	// The server provides moniker support.
 	//
 	// @since 3.16.0
@@ -4858,7 +4858,7 @@ type ServerCapabilities struct {
 	// The server provides inlay hints.
 	//
 	// @since 3.17.0
-	InlayHintProvider interface{} `json:"inlayHintProvider,omitempty"`
+	InlayHintProvider any `json:"inlayHintProvider,omitempty"`
 	// The server has support for pull model diagnostics.
 	//
 	// @since 3.17.0
