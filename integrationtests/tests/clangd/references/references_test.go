@@ -108,8 +108,7 @@ func countFilesInResult(result string, workspaceDir string) int {
 	// Normalize workspaceDir path for string matching
 	normalizedWorkspaceDir := filepath.ToSlash(workspaceDir)
 
-	lines := strings.Split(result, "\n")
-	for _, line := range lines {
+	for line := range strings.Lines(result) {
 		// A line representing a file path typically contains ".cpp" or ".hpp"
 		// and is an absolute path or relative to the workspace view.
 		if strings.Contains(line, ".cpp") || strings.Contains(line, ".hpp") {
@@ -147,8 +146,8 @@ func extractPathSegment(line string) string {
 		return "" // Not a C++ source/header file line we can easily parse
 	}
 
-	fields := strings.Fields(line)
-	for _, field := range fields {
+	fields := strings.FieldsSeq(line)
+	for field := range fields {
 		if strings.HasSuffix(field, ext) {
 			// Attempt to clean common prefixes like "uri: file://" or line numbers
 			cleanedPath := strings.TrimPrefix(field, "uri:")

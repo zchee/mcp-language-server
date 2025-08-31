@@ -371,8 +371,8 @@ func matchesGlob(pattern, path string) bool {
 // matchesSimpleGlob handles glob patterns with ** wildcards
 func matchesSimpleGlob(pattern, path string) bool {
 	// Handle special case for **/*.ext pattern (common in LSP)
-	if strings.HasPrefix(pattern, "**/") {
-		rest := strings.TrimPrefix(pattern, "**/")
+	if after, ok := strings.CutPrefix(pattern, "**/"); ok {
+		rest := after
 
 		// If the rest is a simple file extension pattern like *.go
 		if strings.HasPrefix(rest, "*.") {
